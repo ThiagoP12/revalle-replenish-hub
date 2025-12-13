@@ -42,6 +42,16 @@ export interface Observacao {
   texto: string;
 }
 
+export interface ObservacaoLog {
+  id: string;
+  usuarioNome: string;
+  usuarioId: string;
+  data: string;
+  hora: string;
+  acao: string;
+  texto: string;
+}
+
 export interface Protocolo {
   id: string;
   numero: string;
@@ -67,6 +77,10 @@ export interface Protocolo {
   historicoObservacoes?: Observacao[];
   habilitarReenvio?: boolean;
   createdAt: string;
+  observacoesLog?: ObservacaoLog[];
+  mensagemEncerramento?: string;
+  arquivoEncerramento?: string;
+  oculto?: boolean;
 }
 
 export interface DashboardStats {
