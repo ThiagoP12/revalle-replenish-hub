@@ -24,6 +24,7 @@ import { Eye, CheckCircle, XCircle, Send, Filter, X, MoreVertical, ChevronRight,
 import { toast } from 'sonner';
 import { differenceInDays, parseISO, format, isAfter, isBefore, parse } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
+import CreateProtocoloModal from '@/components/CreateProtocoloModal';
 
 const calcularSlaDias = (createdAt: string): number => {
   const dataProtocolo = parseISO(createdAt);
@@ -49,6 +50,7 @@ export default function Protocolos() {
   const [selectedProtocolo, setSelectedProtocolo] = useState<Protocolo | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -178,6 +180,10 @@ export default function Protocolos() {
     setSelectedProtocolo(protocoloAtualizado);
   };
 
+  const handleCreateProtocolo = (novoProtocolo: Protocolo) => {
+    setProtocolos(prev => [novoProtocolo, ...prev]);
+  };
+
   const handleNavigateProtocolo = (index: number) => {
     if (index >= 0 && index < filteredProtocolos.length) {
       setSelectedProtocolo(filteredProtocolos[index]);
@@ -258,7 +264,7 @@ STATUS: Validado: ${protocolo.validacao ? 'Sim' : 'Não'} | Lançado: ${protocol
           {/* Botão Criar Protocolo - Apenas Admin */}
           {isAdmin && (
             <Button 
-              onClick={() => toast.info('Funcionalidade de criar protocolo em desenvolvimento')}
+              onClick={() => setShowCreateModal(true)}
               className="lg:w-auto"
             >
               <Plus size={18} className="mr-2" />
@@ -574,6 +580,13 @@ STATUS: Validado: ${protocolo.validacao ? 'Sim' : 'Não'} | Lançado: ${protocol
         onUpdateProtocolo={handleUpdateProtocolo}
         user={user}
         canValidate={canValidate}
+      />
+
+      {/* Create Protocol Modal */}
+      <CreateProtocoloModal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreateProtocolo={handleCreateProtocolo}
       />
     </div>
   );
