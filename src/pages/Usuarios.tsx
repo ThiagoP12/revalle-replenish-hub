@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User, UserRole } from '@/types';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { TablePagination } from '@/components/ui/TablePagination';
 import { 
   Select,
   SelectContent,
@@ -48,10 +49,26 @@ export default function Usuarios() {
     unidade: '',
   });
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
   const filteredUsuarios = usuarios.filter(u => 
     u.nome.toLowerCase().includes(search.toLowerCase()) ||
     u.email.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredUsuarios.length / pageSize);
+  const paginatedUsuarios = filteredUsuarios.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, pageSize]);
 
   const resetForm = () => {
     setFormData({
@@ -260,7 +277,7 @@ export default function Usuarios() {
             </tr>
           </thead>
           <tbody>
-            {filteredUsuarios.map((usuario) => (
+            {paginatedUsuarios.map((usuario) => (
               <tr 
                 key={usuario.id} 
                 className="border-b border-border"
@@ -311,6 +328,22 @@ export default function Usuarios() {
             ))}
           </tbody>
         </table>
+
+        {filteredUsuarios.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            Nenhum usuário encontrado
+          </div>
+        )}
+
+        {/* Pagination */}
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalItems={filteredUsuarios.length}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
     </div>
   );
