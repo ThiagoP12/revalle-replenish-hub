@@ -1,7 +1,10 @@
-import { Protocolo } from '@/types';
+import { useState } from 'react';
+import { Protocolo, ObservacaoLog, User } from '@/types';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { 
   Dialog, 
   DialogContent, 
@@ -12,7 +15,7 @@ import {
   CheckCircle, 
   XCircle, 
   Download, 
-  User, 
+  User as UserIcon, 
   Building2, 
   Package, 
   Image, 
@@ -20,9 +23,12 @@ import {
   FileText,
   Clock,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Upload,
+  Lock
 } from 'lucide-react';
-import { useState } from 'react';
+import { toast } from 'sonner';
+import { format } from 'date-fns';
 
 interface ProtocoloDetailsProps {
   protocolo: Protocolo | null;
@@ -31,16 +37,115 @@ interface ProtocoloDetailsProps {
   open: boolean;
   onClose: () => void;
   onNavigate: (index: number) => void;
+  onUpdateProtocolo?: (protocolo: Protocolo) => void;
+  user?: User | null;
+  canValidate?: boolean;
 }
 
-export function ProtocoloDetails({ protocolo, protocolos, currentIndex, open, onClose, onNavigate }: ProtocoloDetailsProps) {
+export function ProtocoloDetails({ 
+  protocolo, 
+  protocolos, 
+  currentIndex, 
+  open, 
+  onClose, 
+  onNavigate,
+  onUpdateProtocolo,
+  user,
+  canValidate
+}: ProtocoloDetailsProps) {
   const [habilitarReenvio, setHabilitarReenvio] = useState(protocolo?.habilitarReenvio || false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [novaObservacao, setNovaObservacao] = useState('');
+  const [mensagemEncerramento, setMensagemEncerramento] = useState('');
+  const [arquivoAnexado, setArquivoAnexado] = useState<File | null>(null);
 
   if (!protocolo) return null;
 
   const canGoPrevious = currentIndex > 0;
   const canGoNext = currentIndex < protocolos.length - 1;
+
+  const handleSalvarObservacao = () => {
+    if (!novaObservacao.trim() || !user || !onUpdateProtocolo) return;
+    
+    const novoLog: ObservacaoLog = {
+      id: Date.now().toString(),
+      usuarioNome: user.nome,
+      usuarioId: user.id,
+      data: format(new Date(), 'dd/MM/yyyy'),
+      hora: format(new Date(), 'HH:mm'),
+      acao: 'Adicionou observação',
+      texto: novaObservacao
+    };
+    
+    const protocoloAtualizado = {
+      ...protocolo,
+      observacoesLog: [...(protocolo.observacoesLog || []), novoLog]
+    };
+    
+    onUpdateProtocolo(protocoloAtualizado);
+    setNovaObservacao('');
+    toast.success('Observação salva!');
+  };
+
+  const handleAnexarPdf = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type === 'application/pdf') {
+      setArquivoAnexado(file);
+    } else {
+      toast.error('Por favor, selecione um arquivo PDF');
+    }
+  };
+
+  const handleEncerrarProtocolo = () => {
+    if (!onUpdateProtocolo || !user) return;
+    
+    const protocoloAtualizado: Protocolo = {
+      ...protocolo,
+      status: 'encerrado' as const,
+      mensagemEncerramento,
+      arquivoEncerramento: arquivoAnexado?.name,
+      observacoesLog: [
+        ...(protocolo.observacoesLog || []),
+        {
+          id: Date.now().toString(),
+          usuarioNome: user.nome,
+          usuarioId: user.id,
+          data: format(new Date(), 'dd/MM/yyyy'),
+          hora: format(new Date(), 'HH:mm'),
+          acao: 'Encerrou o protocolo',
+          texto: mensagemEncerramento || 'Protocolo encerrado'
+        }
+      ]
+    };
+    
+    onUpdateProtocolo(protocoloAtualizado);
+    toast.success('Protocolo encerrado com sucesso!');
+    onClose();
+  };
+
+  const handleConfirmarValidacao = () => {
+    if (!onUpdateProtocolo) return;
+    
+    const protocoloAtualizado: Protocolo = {
+      ...protocolo,
+      validacao: !protocolo.validacao,
+      observacoesLog: [
+        ...(protocolo.observacoesLog || []),
+        {
+          id: Date.now().toString(),
+          usuarioNome: user?.nome || '',
+          usuarioId: user?.id || '',
+          data: format(new Date(), 'dd/MM/yyyy'),
+          hora: format(new Date(), 'HH:mm'),
+          acao: protocolo.validacao ? 'Removeu validação' : 'Confirmou validação',
+          texto: protocolo.validacao ? 'Validação removida' : 'Protocolo validado'
+        }
+      ]
+    };
+    
+    onUpdateProtocolo(protocoloAtualizado);
+    toast.success(protocolo.validacao ? 'Validação removida!' : 'Protocolo validado!');
+  };
 
   const handleDownload = () => {
     const content = `
@@ -81,8 +186,8 @@ ${protocolo.produtos?.map(p =>
 
 HISTÓRICO DE OBSERVAÇÕES
 ------------------------
-${protocolo.historicoObservacoes?.map(o => 
-  `${o.data} ${o.hora} - ${o.texto}`
+${protocolo.observacoesLog?.map(o => 
+  `${o.data} ${o.hora} - ${o.usuarioNome} - ${o.acao}: ${o.texto}`
 ).join('\n') || 'Nenhum histórico'}
 
 STATUS DO PROTOCOLO
@@ -145,14 +250,14 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
           <div className="space-y-6 mt-4">
             {/* Status do Protocolo */}
             <div className="bg-muted/50 rounded-lg p-4">
-              <h3 className="font-semibold text-sm text-muted-foreground mb-3 flex items-center gap-2">
+              <h3 className="font-bold text-sm text-muted-foreground mb-3 flex items-center gap-2">
                 <CheckCircle size={16} />
                 Status do Protocolo
               </h3>
-              <div className="flex gap-6">
+              <div className="flex flex-wrap gap-6">
                 <div className="flex items-center gap-2">
                   {protocolo.validacao ? (
-                    <CheckCircle className="text-success" size={18} />
+                    <CheckCircle className="text-green-500" size={18} />
                   ) : (
                     <XCircle className="text-muted-foreground" size={18} />
                   )}
@@ -160,18 +265,29 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
                 </div>
                 <div className="flex items-center gap-2">
                   {protocolo.lancado ? (
-                    <CheckCircle className="text-success" size={18} />
+                    <CheckCircle className="text-green-500" size={18} />
                   ) : (
                     <XCircle className="text-muted-foreground" size={18} />
                   )}
                   <span className="text-sm">Lançado: <strong>{protocolo.lancado ? 'Sim' : 'Não'}</strong></span>
                 </div>
+                
+                {/* Botão de Validação para Conferente */}
+                {canValidate && protocolo.status !== 'encerrado' && onUpdateProtocolo && (
+                  <Button 
+                    variant={protocolo.validacao ? "outline" : "default"}
+                    size="sm"
+                    onClick={handleConfirmarValidacao}
+                  >
+                    {protocolo.validacao ? 'Remover Validação' : 'Confirmar Validação'}
+                  </Button>
+                )}
               </div>
             </div>
 
             {/* Informações Gerais */}
             <div className="bg-muted/50 rounded-lg p-4">
-              <h3 className="font-semibold text-sm text-muted-foreground mb-3 flex items-center gap-2">
+              <h3 className="font-bold text-sm text-muted-foreground mb-3 flex items-center gap-2">
                 <Clock size={16} />
                 Informações Gerais
               </h3>
@@ -209,8 +325,8 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
 
             {/* Dados do Motorista */}
             <div className="bg-muted/50 rounded-lg p-4">
-              <h3 className="font-semibold text-sm text-muted-foreground mb-3 flex items-center gap-2">
-                <User size={16} />
+              <h3 className="font-bold text-sm text-muted-foreground mb-3 flex items-center gap-2">
+                <UserIcon size={16} />
                 Dados do Motorista
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -242,7 +358,7 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
 
             {/* Informações do Cliente */}
             <div className="bg-muted/50 rounded-lg p-4">
-              <h3 className="font-semibold text-sm text-muted-foreground mb-3 flex items-center gap-2">
+              <h3 className="font-bold text-sm text-muted-foreground mb-3 flex items-center gap-2">
                 <Building2 size={16} />
                 Informações do Cliente
               </h3>
@@ -262,18 +378,18 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
               </div>
             </div>
 
-            {/* Observação */}
+            {/* Observação Geral */}
             <div className="bg-muted/50 rounded-lg p-4">
-              <h3 className="font-semibold text-sm text-muted-foreground mb-3 flex items-center gap-2">
+              <h3 className="font-bold text-sm text-muted-foreground mb-3 flex items-center gap-2">
                 <MessageSquare size={16} />
-                Observação
+                Observação Geral
               </h3>
               <p className="text-sm">{protocolo.observacaoGeral || '-'}</p>
             </div>
 
             {/* Produtos Recebidos */}
             <div className="bg-muted/50 rounded-lg p-4">
-              <h3 className="font-semibold text-sm text-muted-foreground mb-3 flex items-center gap-2">
+              <h3 className="font-bold text-sm text-muted-foreground mb-3 flex items-center gap-2">
                 <Package size={16} />
                 Produtos Recebidos
               </h3>
@@ -282,12 +398,12 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border">
-                        <th className="text-left p-2 text-muted-foreground font-medium">Código</th>
-                        <th className="text-left p-2 text-muted-foreground font-medium">Produto</th>
-                        <th className="text-left p-2 text-muted-foreground font-medium">Unidade</th>
-                        <th className="text-center p-2 text-muted-foreground font-medium">Qtd</th>
-                        <th className="text-left p-2 text-muted-foreground font-medium">Validade</th>
-                        <th className="text-left p-2 text-muted-foreground font-medium">Observação</th>
+                        <th className="text-left p-2 text-muted-foreground font-bold">Código</th>
+                        <th className="text-left p-2 text-muted-foreground font-bold">Produto</th>
+                        <th className="text-left p-2 text-muted-foreground font-bold">Unidade</th>
+                        <th className="text-center p-2 text-muted-foreground font-bold">Qtd</th>
+                        <th className="text-left p-2 text-muted-foreground font-bold">Validade</th>
+                        <th className="text-left p-2 text-muted-foreground font-bold">Observação</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -312,7 +428,7 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
             {/* Fotos Enviadas */}
             {protocolo.fotos && protocolo.fotos.length > 0 && (
               <div className="bg-muted/50 rounded-lg p-4">
-                <h3 className="font-semibold text-sm text-muted-foreground mb-3 flex items-center gap-2">
+                <h3 className="font-bold text-sm text-muted-foreground mb-3 flex items-center gap-2">
                   <Image size={16} />
                   Fotos Enviadas
                 </h3>
@@ -334,26 +450,108 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
               </div>
             )}
 
-            {/* Histórico de Observações */}
-            {protocolo.historicoObservacoes && protocolo.historicoObservacoes.length > 0 && (
-              <div className="bg-muted/50 rounded-lg p-4">
-                <h3 className="font-semibold text-sm text-muted-foreground mb-3 flex items-center gap-2">
-                  <MessageSquare size={16} />
-                  Histórico de Observações
-                </h3>
-                <div className="space-y-2">
-                  {protocolo.historicoObservacoes.map((obs) => (
-                    <div key={obs.id} className="flex gap-3 text-sm">
-                      <span className="text-muted-foreground whitespace-nowrap">
-                        {obs.data} {obs.hora}
-                      </span>
-                      <span className="text-muted-foreground">—</span>
-                      <span>{obs.texto}</span>
+            {/* Seção de Observações - Todos podem comentar */}
+            <div className="bg-muted/50 rounded-lg p-4">
+              <h3 className="font-bold text-sm text-muted-foreground mb-3 flex items-center gap-2">
+                <MessageSquare size={16} />
+                Observações
+              </h3>
+              
+              {/* Log de observações anteriores */}
+              {protocolo.observacoesLog && protocolo.observacoesLog.length > 0 && (
+                <div className="space-y-3 mb-4 max-h-48 overflow-y-auto">
+                  {protocolo.observacoesLog.map((log) => (
+                    <div key={log.id} className="border-l-2 border-primary pl-3 py-1">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground">{log.usuarioNome}</span>
+                        <span>•</span>
+                        <span>{log.data} às {log.hora}</span>
+                        <span>•</span>
+                        <span className="text-primary">{log.acao}</span>
+                      </div>
+                      <p className="text-sm mt-1">{log.texto}</p>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+              
+              {/* Campo para nova observação */}
+              {user && onUpdateProtocolo && (
+                <div className="space-y-2">
+                  <Textarea
+                    placeholder="Digite sua observação..."
+                    value={novaObservacao}
+                    onChange={(e) => setNovaObservacao(e.target.value)}
+                    className="min-h-[80px]"
+                  />
+                  <Button onClick={handleSalvarObservacao} disabled={!novaObservacao.trim()}>
+                    Salvar observações
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* Seção de Encerramento */}
+            <div className="bg-muted/50 rounded-lg p-4 border-t-4 border-destructive/30">
+              <h3 className="font-bold text-sm text-muted-foreground mb-3 flex items-center gap-2">
+                <Lock size={16} />
+                Encerramento
+              </h3>
+              
+              {protocolo.status !== 'encerrado' ? (
+                user && onUpdateProtocolo ? (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Mensagem para o usuário</label>
+                      <Textarea
+                        placeholder="Escreva uma mensagem de encerramento..."
+                        value={mensagemEncerramento}
+                        onChange={(e) => setMensagemEncerramento(e.target.value)}
+                        className="min-h-[80px]"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Anexar arquivo PDF</label>
+                      <div className="flex items-center gap-2">
+                        <Input 
+                          type="file" 
+                          accept=".pdf"
+                          onChange={handleAnexarPdf}
+                          className="max-w-xs"
+                        />
+                        {arquivoAnexado && (
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Upload size={14} />
+                            {arquivoAnexado.name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <Button 
+                      variant="destructive"
+                      onClick={handleEncerrarProtocolo}
+                      className="w-full"
+                    >
+                      Encerrar Protocolo
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Você não tem permissão para encerrar este protocolo.</p>
+                )
+              ) : (
+                <div className="text-sm space-y-2">
+                  <p className="text-green-600 font-medium">Este protocolo foi encerrado.</p>
+                  {protocolo.mensagemEncerramento && (
+                    <p><strong>Mensagem:</strong> {protocolo.mensagemEncerramento}</p>
+                  )}
+                  {protocolo.arquivoEncerramento && (
+                    <p><strong>Arquivo anexado:</strong> {protocolo.arquivoEncerramento}</p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

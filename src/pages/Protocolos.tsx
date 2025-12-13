@@ -20,7 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Eye, CheckCircle, XCircle, Send, Filter, X, MoreVertical, Edit, Power, ChevronRight, Phone, Download } from 'lucide-react';
+import { Eye, CheckCircle, XCircle, Send, Filter, X, MoreVertical, ChevronRight, Phone, Download, Plus, EyeOff, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { differenceInDays, parseISO, format, isAfter, isBefore, parse } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,7 +38,7 @@ const getSlaColor = (dias: number): string => {
 };
 
 export default function Protocolos() {
-  const { canValidate, canLaunch } = useAuth();
+  const { canValidate, canLaunch, isAdmin, isDistribuicao, isConferente, user } = useAuth();
   const [protocolos, setProtocolos] = useState<Protocolo[]>(mockProtocolos);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<string>('todos');
@@ -54,14 +54,10 @@ export default function Protocolos() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  const countByStatus = {
-    todos: protocolos.length,
-    aberto: protocolos.filter(p => p.status === 'aberto').length,
-    em_andamento: protocolos.filter(p => p.status === 'em_andamento').length,
-    encerrado: protocolos.filter(p => p.status === 'encerrado').length,
-  };
-
   const filteredProtocolos = protocolos.filter(p => {
+    // Não mostrar protocolos ocultos (exceto para admin que os ocultou)
+    if (p.oculto) return false;
+    
     const searchMatch = 
       p.numero.toLowerCase().includes(search.toLowerCase()) ||
       p.motorista.nome.toLowerCase().includes(search.toLowerCase()) ||
@@ -160,6 +156,28 @@ export default function Protocolos() {
     toast.success('Validação atualizada!');
   };
 
+  const handleOcultar = (id: string) => {
+    setProtocolos(prev => prev.map(p => 
+      p.id === id ? { ...p, oculto: true } : p
+    ));
+    toast.success('Protocolo ocultado!');
+  };
+
+  const handleExcluir = (id: string) => {
+    if (confirm('Tem certeza que deseja excluir este protocolo?')) {
+      setProtocolos(prev => prev.filter(p => p.id !== id));
+      toast.success('Protocolo excluído!');
+    }
+  };
+
+  const handleUpdateProtocolo = (protocoloAtualizado: Protocolo) => {
+    setProtocolos(prev => prev.map(p => 
+      p.id === protocoloAtualizado.id ? protocoloAtualizado : p
+    ));
+    // Atualizar o protocolo selecionado também
+    setSelectedProtocolo(protocoloAtualizado);
+  };
+
   const handleNavigateProtocolo = (index: number) => {
     if (index >= 0 && index < filteredProtocolos.length) {
       setSelectedProtocolo(filteredProtocolos[index]);
@@ -237,6 +255,16 @@ STATUS: Validado: ${protocolo.validacao ? 'Sim' : 'Não'} | Lançado: ${protocol
           className="flex-1"
         />
         <div className="flex gap-2">
+          {/* Botão Criar Protocolo - Apenas Admin */}
+          {isAdmin && (
+            <Button 
+              onClick={() => toast.info('Funcionalidade de criar protocolo em desenvolvimento')}
+              className="lg:w-auto"
+            >
+              <Plus size={18} className="mr-2" />
+              Criar Protocolo
+            </Button>
+          )}
           <Button 
             variant="outline" 
             onClick={handleDownloadAll}
@@ -262,32 +290,32 @@ STATUS: Validado: ${protocolo.validacao ? 'Sim' : 'Não'} | Lançado: ${protocol
         </div>
       </div>
 
-      {/* Status Tabs */}
+      {/* Status Tabs - SEM contagem */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="bg-transparent gap-2 h-auto p-0">
           <TabsTrigger 
             value="todos" 
             className="data-[state=active]:bg-[#E0E7FF] data-[state=active]:text-[#1E3A8A] data-[state=active]:font-semibold data-[state=inactive]:text-[#64748B] data-[state=inactive]:bg-transparent hover:bg-[#F1F5F9] rounded-2xl px-3 py-1.5 text-sm transition-colors"
           >
-            Todos <span className="ml-1 font-bold">({countByStatus.todos})</span>
+            Todos
           </TabsTrigger>
           <TabsTrigger 
             value="aberto" 
             className="data-[state=active]:bg-[#E0E7FF] data-[state=active]:text-[#1E3A8A] data-[state=active]:font-semibold data-[state=inactive]:text-[#64748B] data-[state=inactive]:bg-transparent hover:bg-[#F1F5F9] rounded-2xl px-3 py-1.5 text-sm transition-colors"
           >
-            Abertos <span className="ml-1 font-bold">({countByStatus.aberto})</span>
+            Abertos
           </TabsTrigger>
           <TabsTrigger 
             value="em_andamento" 
             className="data-[state=active]:bg-[#E0E7FF] data-[state=active]:text-[#1E3A8A] data-[state=active]:font-semibold data-[state=inactive]:text-[#64748B] data-[state=inactive]:bg-transparent hover:bg-[#F1F5F9] rounded-2xl px-3 py-1.5 text-sm transition-colors"
           >
-            Em andamento <span className="ml-1 font-bold">({countByStatus.em_andamento})</span>
+            Em andamento
           </TabsTrigger>
           <TabsTrigger 
             value="encerrado" 
             className="data-[state=active]:bg-[#E0E7FF] data-[state=active]:text-[#1E3A8A] data-[state=active]:font-semibold data-[state=inactive]:text-[#64748B] data-[state=inactive]:bg-transparent hover:bg-[#F1F5F9] rounded-2xl px-3 py-1.5 text-sm transition-colors"
           >
-            Encerrados <span className="ml-1 font-bold">({countByStatus.encerrado})</span>
+            Encerrados
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -362,16 +390,16 @@ STATUS: Validado: ${protocolo.validacao ? 'Sim' : 'Não'} | Lançado: ${protocol
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
-              <th className="text-left p-4 text-[12px] font-semibold text-[#64748B] uppercase tracking-wider border-r border-[#E5E7EB]">Data/Hora</th>
-              <th className="text-left p-4 text-[12px] font-semibold text-[#64748B] uppercase tracking-wider border-r border-[#E5E7EB]">Protocolo</th>
-              <th className="text-left p-4 text-[12px] font-semibold text-[#64748B] uppercase tracking-wider border-r border-[#E5E7EB]">Motorista</th>
-              <th className="text-left p-4 text-[12px] font-semibold text-[#64748B] uppercase tracking-wider border-r border-[#E5E7EB]">WhatsApp</th>
-              <th className="text-center p-4 text-[12px] font-semibold text-[#64748B] uppercase tracking-wider border-r border-[#E5E7EB]">SLA</th>
-              <th className="text-center p-4 text-[12px] font-semibold text-[#64748B] uppercase tracking-wider border-r border-[#E5E7EB]">Validação</th>
-              <th className="text-center p-4 text-[12px] font-semibold text-[#64748B] uppercase tracking-wider border-r border-[#E5E7EB]">Lançado</th>
-              <th className="text-center p-4 text-[12px] font-semibold text-[#64748B] uppercase tracking-wider border-r border-[#E5E7EB]">Env. Lançar</th>
-              <th className="text-center p-4 text-[12px] font-semibold text-[#64748B] uppercase tracking-wider border-r border-[#E5E7EB]">Env. Encerrar</th>
-              <th className="text-right p-4 text-[12px] font-semibold text-[#64748B] uppercase tracking-wider">Ações</th>
+              <th className="text-left p-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider border-r border-[#E5E7EB]">Data/Hora</th>
+              <th className="text-left p-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider border-r border-[#E5E7EB]">Protocolo</th>
+              <th className="text-left p-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider border-r border-[#E5E7EB]">Motorista</th>
+              <th className="text-left p-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider border-r border-[#E5E7EB]">WhatsApp</th>
+              <th className="text-center p-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider border-r border-[#E5E7EB]">SLA</th>
+              <th className="text-center p-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider border-r border-[#E5E7EB]">Validação</th>
+              <th className="text-center p-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider border-r border-[#E5E7EB]">Lançado</th>
+              <th className="text-center p-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider border-r border-[#E5E7EB]">Env. Lançar</th>
+              <th className="text-center p-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider border-r border-[#E5E7EB]">Env. Encerrar</th>
+              <th className="text-right p-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -461,7 +489,7 @@ STATUS: Validado: ${protocolo.validacao ? 'Sim' : 'Não'} | Lançado: ${protocol
                         variant="ghost"
                         size="sm"
                         onClick={() => handleEnviarEncerrar(protocolo.id)}
-                        className="text-success hover:text-success/80"
+                        className="text-green-600 hover:text-green-700"
                         disabled={!protocolo.lancado || !protocolo.validacao}
                         title={!protocolo.validacao || !protocolo.lancado ? 'Validação e Lançamento são obrigatórios' : ''}
                       >
@@ -478,24 +506,33 @@ STATUS: Validado: ${protocolo.validacao ? 'Sim' : 'Não'} | Lançado: ${protocol
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="bg-white">
+                          {/* Ver detalhes - Todos os perfis */}
                           <DropdownMenuItem onClick={() => {
                             setSelectedProtocolo(protocolo);
                             setSelectedIndex(globalIndex);
                           }}>
                             <Eye size={16} className="mr-2" />
-                            Ver Detalhes
+                            Ver detalhes
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Edit size={16} className="mr-2" />
-                            Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleEnviarEncerrar(protocolo.id)}
-                            disabled={!protocolo.lancado || !protocolo.validacao || protocolo.enviadoEncerrar}
-                          >
-                            <Power size={16} className="mr-2" />
-                            Encerrar
-                          </DropdownMenuItem>
+                          
+                          {/* Ocultar - Apenas Admin */}
+                          {isAdmin && (
+                            <DropdownMenuItem onClick={() => handleOcultar(protocolo.id)}>
+                              <EyeOff size={16} className="mr-2" />
+                              Ocultar
+                            </DropdownMenuItem>
+                          )}
+                          
+                          {/* Excluir - Apenas Admin */}
+                          {isAdmin && (
+                            <DropdownMenuItem 
+                              onClick={() => handleExcluir(protocolo.id)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 size={16} className="mr-2" />
+                              Excluir
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -534,6 +571,9 @@ STATUS: Validado: ${protocolo.validacao ? 'Sim' : 'Não'} | Lançado: ${protocol
           setSelectedIndex(null);
         }}
         onNavigate={handleNavigateProtocolo}
+        onUpdateProtocolo={handleUpdateProtocolo}
+        user={user}
+        canValidate={canValidate}
       />
     </div>
   );
