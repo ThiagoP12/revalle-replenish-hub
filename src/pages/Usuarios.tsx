@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { User } from '@/types';
+import { User, UserRole } from '@/types';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,16 +18,22 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Shield, UserCircle } from 'lucide-react';
+import { Plus, Pencil, Trash2, Shield, UserCircle, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 import { unidades } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 
 const mockUsuarios: User[] = [
-  { id: '1', nome: 'Administrador', email: 'admin@revalle.com', nivel: 'admin', unidade: 'Matriz' },
-  { id: '2', nome: 'Operador', email: 'operador@revalle.com', nivel: 'comum', unidade: 'Filial 01' },
-  { id: '3', nome: 'Maria Silva', email: 'maria@revalle.com', nivel: 'comum', unidade: 'Filial 02' },
+  { id: '1', nome: 'Administrador', email: 'admin@revalle.com', nivel: 'admin', unidade: 'Todas' },
+  { id: '2', nome: 'Distribuição Juazeiro', email: 'distribuicao@revalle.com', nivel: 'distribuicao', unidade: 'Juazeiro' },
+  { id: '3', nome: 'Conferente Juazeiro', email: 'conferente@revalle.com', nivel: 'conferente', unidade: 'Juazeiro' },
 ];
+
+const nivelLabels: Record<UserRole, string> = {
+  admin: 'Administrador',
+  distribuicao: 'Distribuição',
+  conferente: 'Conferente',
+};
 
 export default function Usuarios() {
   const [usuarios, setUsuarios] = useState<User[]>(mockUsuarios);
@@ -38,7 +44,7 @@ export default function Usuarios() {
     nome: '',
     email: '',
     senha: '',
-    nivel: 'comum' as 'admin' | 'comum',
+    nivel: 'conferente' as UserRole,
     unidade: '',
   });
 
@@ -52,7 +58,7 @@ export default function Usuarios() {
       nome: '',
       email: '',
       senha: '',
-      nivel: 'comum',
+      nivel: 'conferente',
       unidade: '',
     });
     setEditingUsuario(null);
@@ -83,7 +89,10 @@ export default function Usuarios() {
     } else {
       const newUsuario: User = {
         id: String(Date.now()),
-        ...formData,
+        nome: formData.nome,
+        email: formData.email,
+        nivel: formData.nivel,
+        unidade: formData.unidade,
       };
       setUsuarios(prev => [...prev, newUsuario]);
       toast.success('Usuário cadastrado com sucesso!');
@@ -100,6 +109,28 @@ export default function Usuarios() {
     }
     setUsuarios(prev => prev.filter(u => u.id !== id));
     toast.success('Usuário excluído com sucesso!');
+  };
+
+  const getNivelIcon = (nivel: UserRole) => {
+    switch (nivel) {
+      case 'admin':
+        return <Shield className="text-primary" size={18} />;
+      case 'distribuicao':
+        return <Truck className="text-info" size={18} />;
+      default:
+        return <UserCircle className="text-muted-foreground" size={18} />;
+    }
+  };
+
+  const getNivelBadgeStyle = (nivel: UserRole) => {
+    switch (nivel) {
+      case 'admin':
+        return "bg-primary/10 text-primary";
+      case 'distribuicao':
+        return "bg-info/10 text-info";
+      default:
+        return "bg-muted text-muted-foreground";
+    }
   };
 
   return (
@@ -164,14 +195,15 @@ export default function Usuarios() {
                   <Label htmlFor="nivel">Nível</Label>
                   <Select
                     value={formData.nivel}
-                    onValueChange={(value: 'admin' | 'comum') => setFormData(prev => ({ ...prev, nivel: value }))}
+                    onValueChange={(value: UserRole) => setFormData(prev => ({ ...prev, nivel: value }))}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="admin">Administrador</SelectItem>
-                      <SelectItem value="comum">Comum</SelectItem>
+                      <SelectItem value="distribuicao">Distribuição</SelectItem>
+                      <SelectItem value="conferente">Conferente</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -237,13 +269,9 @@ export default function Usuarios() {
                   <div className="flex items-center gap-3">
                     <div className={cn(
                       "p-2 rounded-full",
-                      usuario.nivel === 'admin' ? "bg-primary/10" : "bg-muted"
+                      usuario.nivel === 'admin' ? "bg-primary/10" : usuario.nivel === 'distribuicao' ? "bg-info/10" : "bg-muted"
                     )}>
-                      {usuario.nivel === 'admin' ? (
-                        <Shield className="text-primary" size={18} />
-                      ) : (
-                        <UserCircle className="text-muted-foreground" size={18} />
-                      )}
+                      {getNivelIcon(usuario.nivel)}
                     </div>
                     <span className="font-medium">{usuario.nome}</span>
                   </div>
@@ -252,11 +280,9 @@ export default function Usuarios() {
                 <td className="p-4">
                   <span className={cn(
                     "px-3 py-1 rounded-full text-xs font-medium",
-                    usuario.nivel === 'admin' 
-                      ? "bg-primary/10 text-primary" 
-                      : "bg-muted text-muted-foreground"
+                    getNivelBadgeStyle(usuario.nivel)
                   )}>
-                    {usuario.nivel === 'admin' ? 'Administrador' : 'Comum'}
+                    {nivelLabels[usuario.nivel]}
                   </span>
                 </td>
                 <td className="p-4">{usuario.unidade}</td>

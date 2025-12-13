@@ -4,6 +4,7 @@ import {
   LayoutDashboard, 
   FileText, 
   Truck, 
+  Building2,
   Users, 
   Settings, 
   LogOut,
@@ -13,12 +14,22 @@ import {
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
-const navItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', adminOnly: false },
-  { icon: FileText, label: 'Protocolos', path: '/protocolos', adminOnly: false },
-  { icon: Truck, label: 'Motoristas', path: '/motoristas', adminOnly: true },
-  { icon: Users, label: 'Usuários', path: '/usuarios', adminOnly: true },
-  { icon: Settings, label: 'Configurações', path: '/configuracoes', adminOnly: true },
+type NavItem = {
+  icon: typeof LayoutDashboard;
+  label: string;
+  path: string;
+  roles: ('admin' | 'distribuicao' | 'conferente')[];
+  isLogout?: boolean;
+};
+
+const navItems: NavItem[] = [
+  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', roles: ['admin', 'distribuicao'] },
+  { icon: FileText, label: 'Protocolos', path: '/protocolos', roles: ['admin', 'distribuicao', 'conferente'] },
+  { icon: Truck, label: 'Motoristas', path: '/motoristas', roles: ['admin', 'distribuicao'] },
+  { icon: Building2, label: 'Unidades', path: '/unidades', roles: ['admin'] },
+  { icon: Users, label: 'Usuários', path: '/usuarios', roles: ['admin'] },
+  { icon: Settings, label: 'Configurações', path: '/configuracoes', roles: ['admin'] },
+  { icon: LogOut, label: 'Sair', path: '/logout', roles: ['admin', 'distribuicao', 'conferente'], isLogout: true },
 ];
 
 export function Sidebar() {
@@ -26,7 +37,8 @@ export function Sidebar() {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
 
-  const filteredNavItems = navItems.filter(item => !item.adminOnly || isAdmin);
+  const userRole = user?.nivel || 'conferente';
+  const filteredNavItems = navItems.filter(item => item.roles.includes(userRole));
 
   return (
     <>
@@ -67,6 +79,22 @@ export function Sidebar() {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
               
+              if (item.isLogout) {
+                return (
+                  <button
+                    key={item.path}
+                    onClick={() => {
+                      setIsOpen(false);
+                      logout();
+                    }}
+                    className="sidebar-item w-full text-destructive hover:bg-destructive/10"
+                  >
+                    <Icon size={20} />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              }
+              
               return (
                 <Link
                   key={item.path}
@@ -84,27 +112,20 @@ export function Sidebar() {
             })}
           </nav>
 
-          {/* User info & Logout */}
+          {/* User info */}
           <div className="p-4 border-t border-sidebar-border">
-            <div className="mb-4 px-4">
+            <div className="px-4">
               <p className="font-medium text-sidebar-foreground">{user?.nome}</p>
               <p className="text-sm text-sidebar-foreground/60">{user?.email}</p>
               <span className={cn(
-                "inline-block mt-2 px-2 py-1 rounded text-xs font-medium",
+                "inline-block mt-2 px-2 py-1 rounded text-xs font-medium capitalize",
                 isAdmin 
                   ? "bg-sidebar-primary text-sidebar-primary-foreground" 
                   : "bg-sidebar-accent text-sidebar-accent-foreground"
               )}>
-                {isAdmin ? 'Administrador' : 'Usuário'}
+                {user?.nivel === 'admin' ? 'Administrador' : user?.nivel === 'distribuicao' ? 'Distribuição' : 'Conferente'}
               </span>
             </div>
-            <button
-              onClick={logout}
-              className="sidebar-item w-full text-destructive hover:bg-destructive/10"
-            >
-              <LogOut size={20} />
-              <span>Sair</span>
-            </button>
           </div>
         </div>
       </aside>
