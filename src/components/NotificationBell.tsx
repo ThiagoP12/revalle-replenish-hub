@@ -70,7 +70,7 @@ export function NotificationBell() {
               ? "bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-500/30 hover:shadow-xl hover:shadow-red-500/40"
               : "bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40",
             "hover:scale-110 hover:-rotate-12",
-            count > 0 && "animate-wiggle"
+            count > 0 && !isOpen && "animate-wiggle"
           )}
         >
           {showCritical ? (
@@ -151,7 +151,7 @@ export function NotificationBell() {
                 <div
                   key={protocolo.id}
                   className={cn(
-                    "px-4 py-3 border-b border-border/50 hover:bg-muted/50 transition-colors cursor-pointer",
+                    "px-4 py-3 border-b-2 border-border hover:bg-muted/50 transition-colors cursor-pointer",
                     isCritical && "bg-red-50/50 dark:bg-red-950/20 border-l-4 border-l-red-500"
                   )}
                 >
