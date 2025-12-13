@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { mockProtocolos } from '@/data/mockData';
 import { Protocolo } from '@/types';
 import { SearchInput } from '@/components/ui/SearchInput';
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ProtocoloDetails } from '@/components/ProtocoloDetails';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TablePagination } from '@/components/ui/TablePagination';
 import { 
   Select,
   SelectContent,
@@ -40,7 +41,7 @@ export default function Protocolos() {
   const { canValidate, canLaunch } = useAuth();
   const [protocolos, setProtocolos] = useState<Protocolo[]>(mockProtocolos);
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<string>('aberto');
+  const [activeTab, setActiveTab] = useState<string>('todos');
   const [dataInicialFilter, setDataInicialFilter] = useState('');
   const [dataFinalFilter, setDataFinalFilter] = useState('');
   const [lancadoFilter, setLancadoFilter] = useState<string>('todos');
@@ -48,8 +49,13 @@ export default function Protocolos() {
   const [selectedProtocolo, setSelectedProtocolo] = useState<Protocolo | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   const countByStatus = {
+    todos: protocolos.length,
     aberto: protocolos.filter(p => p.status === 'aberto').length,
     em_andamento: protocolos.filter(p => p.status === 'em_andamento').length,
     encerrado: protocolos.filter(p => p.status === 'encerrado').length,
@@ -63,7 +69,7 @@ export default function Protocolos() {
       p.codigoPdv?.includes(search) ||
       p.mapa?.includes(search);
     
-    const statusMatch = p.status === activeTab;
+    const statusMatch = activeTab === 'todos' || p.status === activeTab;
     
     // Filtro de data inicial
     let dataInicialMatch = true;
@@ -93,6 +99,18 @@ export default function Protocolos() {
     
     return searchMatch && statusMatch && dataInicialMatch && dataFinalMatch && lancadoMatch && validadoMatch;
   });
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredProtocolos.length / pageSize);
+  const paginatedProtocolos = filteredProtocolos.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, activeTab, dataInicialFilter, dataFinalFilter, lancadoFilter, validadoFilter, pageSize]);
 
   const handleEnviarLancar = (id: string) => {
     setProtocolos(prev => prev.map(p => 
@@ -248,6 +266,12 @@ STATUS: Validado: ${protocolo.validacao ? 'Sim' : 'Não'} | Lançado: ${protocol
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="bg-transparent gap-2 h-auto p-0">
           <TabsTrigger 
+            value="todos" 
+            className="data-[state=active]:bg-[#E0E7FF] data-[state=active]:text-[#1E3A8A] data-[state=active]:font-semibold data-[state=inactive]:text-[#64748B] data-[state=inactive]:bg-transparent hover:bg-[#F1F5F9] rounded-2xl px-3 py-1.5 text-sm transition-colors"
+          >
+            Todos <span className="ml-1 font-bold">({countByStatus.todos})</span>
+          </TabsTrigger>
+          <TabsTrigger 
             value="aberto" 
             className="data-[state=active]:bg-[#E0E7FF] data-[state=active]:text-[#1E3A8A] data-[state=active]:font-semibold data-[state=inactive]:text-[#64748B] data-[state=inactive]:bg-transparent hover:bg-[#F1F5F9] rounded-2xl px-3 py-1.5 text-sm transition-colors"
           >
@@ -351,131 +375,134 @@ STATUS: Validado: ${protocolo.validacao ? 'Sim' : 'Não'} | Lançado: ${protocol
             </tr>
           </thead>
           <tbody>
-            {filteredProtocolos.map((protocolo, index) => (
-              <tr 
-                key={protocolo.id} 
-                className={`border-b border-[#E5E7EB] ${selectedIndex === index ? 'bg-blue-50' : ''}`}
-              >
-                <td className="p-4 border-r border-[#E5E7EB]">
-                  <div className="text-[14px] text-[#1F2937]">
-                    <p className="font-bold">{protocolo.data}</p>
-                    <p className="font-bold">{protocolo.hora}</p>
-                  </div>
-                </td>
-                <td className="p-4 border-r border-[#E5E7EB]">
-                  <span className="text-[#2563EB] font-medium hover:underline cursor-pointer">
-                    {protocolo.numero}
-                  </span>
-                </td>
-                <td className="p-4 border-r border-[#E5E7EB] text-[14px] text-[#1F2937] font-bold">
-                  {protocolo.motorista.nome}
-                </td>
-                <td className="p-4 border-r border-[#E5E7EB]">
-                  <span className="text-[#16A34A] font-medium flex items-center gap-1">
-                    <Phone size={14} />
-                    {protocolo.motorista.whatsapp}
-                  </span>
-                </td>
-                <td className="p-4 text-center border-r border-[#E5E7EB]">
-                  {(() => {
-                    const dias = calcularSlaDias(protocolo.createdAt);
-                    return (
-                      <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium ${getSlaColor(dias)}`}>
-                        {dias} {dias === 1 ? 'dia' : 'dias'}
-                      </span>
-                    );
-                  })()}
-                </td>
-                <td className="p-4 text-center border-r border-[#E5E7EB]">
-                  <button
-                    onClick={() => handleToggleValidacao(protocolo.id)}
-                    className="inline-flex"
-                    title="Apenas Conferente pode validar"
-                  >
-                    {protocolo.validacao ? (
-                      <CheckCircle className="text-green-500" size={22} />
-                    ) : (
-                      <XCircle className="text-red-400" size={22} />
-                    )}
-                  </button>
-                </td>
-                <td className="p-4 text-center border-r border-[#E5E7EB]">
-                  <button
-                    onClick={() => handleToggleLancado(protocolo.id)}
-                    className={`inline-flex ${!protocolo.validacao ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    disabled={!protocolo.validacao}
-                    title={!protocolo.validacao ? 'Aguardando validação do conferente' : 'Apenas Distribuição pode lançar'}
-                  >
-                    {protocolo.lancado ? (
-                      <CheckCircle className="text-green-500" size={22} />
-                    ) : (
-                      <XCircle className="text-red-400" size={22} />
-                    )}
-                  </button>
-                </td>
-                <td className="p-4 text-center border-r border-[#E5E7EB]">
-                  {protocolo.enviadoLancar ? (
-                    <CheckCircle className="text-green-500 mx-auto" size={22} />
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEnviarLancar(protocolo.id)}
-                      className="text-info hover:text-info/80"
+            {paginatedProtocolos.map((protocolo, index) => {
+              const globalIndex = (currentPage - 1) * pageSize + index;
+              return (
+                <tr 
+                  key={protocolo.id} 
+                  className={`border-b border-[#E5E7EB] ${selectedIndex === globalIndex ? 'bg-blue-50' : ''}`}
+                >
+                  <td className="p-4 border-r border-[#E5E7EB]">
+                    <div className="text-[14px] text-[#1F2937]">
+                      <p className="font-bold">{protocolo.data}</p>
+                      <p className="font-bold">{protocolo.hora}</p>
+                    </div>
+                  </td>
+                  <td className="p-4 border-r border-[#E5E7EB]">
+                    <span className="text-[#2563EB] font-medium hover:underline cursor-pointer">
+                      {protocolo.numero}
+                    </span>
+                  </td>
+                  <td className="p-4 border-r border-[#E5E7EB] text-[14px] text-[#1F2937] font-bold">
+                    {protocolo.motorista.nome}
+                  </td>
+                  <td className="p-4 border-r border-[#E5E7EB]">
+                    <span className="text-[#16A34A] font-medium flex items-center gap-1">
+                      <Phone size={14} />
+                      {protocolo.motorista.whatsapp}
+                    </span>
+                  </td>
+                  <td className="p-4 text-center border-r border-[#E5E7EB]">
+                    {(() => {
+                      const dias = calcularSlaDias(protocolo.createdAt);
+                      return (
+                        <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium ${getSlaColor(dias)}`}>
+                          {dias} {dias === 1 ? 'dia' : 'dias'}
+                        </span>
+                      );
+                    })()}
+                  </td>
+                  <td className="p-4 text-center border-r border-[#E5E7EB]">
+                    <button
+                      onClick={() => handleToggleValidacao(protocolo.id)}
+                      className="inline-flex"
+                      title="Apenas Conferente pode validar"
                     >
-                      <Send size={16} />
-                    </Button>
-                  )}
-                </td>
-                <td className="p-4 text-center border-r border-[#E5E7EB]">
-                  {protocolo.enviadoEncerrar ? (
-                    <CheckCircle className="text-green-500 mx-auto" size={22} />
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEnviarEncerrar(protocolo.id)}
-                      className="text-success hover:text-success/80"
-                      disabled={!protocolo.lancado || !protocolo.validacao}
-                      title={!protocolo.validacao || !protocolo.lancado ? 'Validação e Lançamento são obrigatórios' : ''}
+                      {protocolo.validacao ? (
+                        <CheckCircle className="text-green-500" size={22} />
+                      ) : (
+                        <XCircle className="text-red-400" size={22} />
+                      )}
+                    </button>
+                  </td>
+                  <td className="p-4 text-center border-r border-[#E5E7EB]">
+                    <button
+                      onClick={() => handleToggleLancado(protocolo.id)}
+                      className={`inline-flex ${!protocolo.validacao ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      disabled={!protocolo.validacao}
+                      title={!protocolo.validacao ? 'Aguardando validação do conferente' : 'Apenas Distribuição pode lançar'}
                     >
-                      <Send size={16} />
-                    </Button>
-                  )}
-                </td>
-                <td className="p-4">
-                  <div className="flex justify-end items-center gap-1">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreVertical size={16} />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-white">
-                        <DropdownMenuItem onClick={() => {
-                          setSelectedProtocolo(protocolo);
-                          setSelectedIndex(index);
-                        }}>
-                          <Eye size={16} className="mr-2" />
-                          Ver Detalhes
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Edit size={16} className="mr-2" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => handleEnviarEncerrar(protocolo.id)}
-                          disabled={!protocolo.lancado || !protocolo.validacao || protocolo.enviadoEncerrar}
-                        >
-                          <Power size={16} className="mr-2" />
-                          Encerrar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                      {protocolo.lancado ? (
+                        <CheckCircle className="text-green-500" size={22} />
+                      ) : (
+                        <XCircle className="text-red-400" size={22} />
+                      )}
+                    </button>
+                  </td>
+                  <td className="p-4 text-center border-r border-[#E5E7EB]">
+                    {protocolo.enviadoLancar ? (
+                      <CheckCircle className="text-green-500 mx-auto" size={22} />
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEnviarLancar(protocolo.id)}
+                        className="text-info hover:text-info/80"
+                      >
+                        <Send size={16} />
+                      </Button>
+                    )}
+                  </td>
+                  <td className="p-4 text-center border-r border-[#E5E7EB]">
+                    {protocolo.enviadoEncerrar ? (
+                      <CheckCircle className="text-green-500 mx-auto" size={22} />
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEnviarEncerrar(protocolo.id)}
+                        className="text-success hover:text-success/80"
+                        disabled={!protocolo.lancado || !protocolo.validacao}
+                        title={!protocolo.validacao || !protocolo.lancado ? 'Validação e Lançamento são obrigatórios' : ''}
+                      >
+                        <Send size={16} />
+                      </Button>
+                    )}
+                  </td>
+                  <td className="p-4">
+                    <div className="flex justify-end items-center gap-1">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreVertical size={16} />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-white">
+                          <DropdownMenuItem onClick={() => {
+                            setSelectedProtocolo(protocolo);
+                            setSelectedIndex(globalIndex);
+                          }}>
+                            <Eye size={16} className="mr-2" />
+                            Ver Detalhes
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Edit size={16} className="mr-2" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleEnviarEncerrar(protocolo.id)}
+                            disabled={!protocolo.lancado || !protocolo.validacao || protocolo.enviadoEncerrar}
+                          >
+                            <Power size={16} className="mr-2" />
+                            Encerrar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         
@@ -484,6 +511,16 @@ STATUS: Validado: ${protocolo.validacao ? 'Sim' : 'Não'} | Lançado: ${protocol
             Nenhum protocolo encontrado
           </div>
         )}
+
+        {/* Pagination */}
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalItems={filteredProtocolos.length}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
 
       {/* Detail Dialog */}

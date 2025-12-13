@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { mockMotoristas, unidades } from '@/data/mockData';
 import { Motorista } from '@/types';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { TablePagination } from '@/components/ui/TablePagination';
 import { 
   Select,
   SelectContent,
@@ -36,11 +37,27 @@ export default function Motoristas() {
     whatsapp: '',
   });
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
   const filteredMotoristas = motoristas.filter(m => 
     m.nome.toLowerCase().includes(search.toLowerCase()) ||
     m.codigo.toLowerCase().includes(search.toLowerCase()) ||
     m.whatsapp.includes(search)
   );
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredMotoristas.length / pageSize);
+  const paginatedMotoristas = filteredMotoristas.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, pageSize]);
 
   const resetForm = () => {
     setFormData({
@@ -210,7 +227,7 @@ export default function Motoristas() {
       <SearchInput
         value={search}
         onChange={setSearch}
-        placeholder="Buscar por nome, código, WhatsApp ou PDV..."
+        placeholder="Buscar por nome, código ou WhatsApp..."
         className="max-w-md"
       />
 
@@ -227,7 +244,7 @@ export default function Motoristas() {
             </tr>
           </thead>
           <tbody>
-            {filteredMotoristas.map((motorista) => (
+            {paginatedMotoristas.map((motorista) => (
               <tr 
                 key={motorista.id} 
                 className="border-b border-border"
@@ -281,6 +298,16 @@ export default function Motoristas() {
             Nenhum motorista encontrado
           </div>
         )}
+
+        {/* Pagination */}
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalItems={filteredMotoristas.length}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
     </div>
   );
