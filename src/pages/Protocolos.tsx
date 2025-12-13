@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { mockProtocolos, mockMotoristas } from '@/data/mockData';
+import { mockProtocolos } from '@/data/mockData';
 import { Protocolo } from '@/types';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Eye, CheckCircle, XCircle, Send, Filter, X, MoreVertical, Edit, Power, ChevronRight, Phone, Download } from 'lucide-react';
 import { toast } from 'sonner';
-import { differenceInDays, parseISO, format } from 'date-fns';
+import { differenceInDays, parseISO, format, isAfter, isBefore, parse } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
 
 const calcularSlaDias = (createdAt: string): number => {
   const dataProtocolo = parseISO(createdAt);
@@ -36,11 +37,14 @@ const getSlaColor = (dias: number): string => {
 };
 
 export default function Protocolos() {
+  const { canValidate, canLaunch } = useAuth();
   const [protocolos, setProtocolos] = useState<Protocolo[]>(mockProtocolos);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<string>('aberto');
-  const [motoristaFilter, setMotoristaFilter] = useState<string>('todos');
-  const [dataFilter, setDataFilter] = useState('');
+  const [dataInicialFilter, setDataInicialFilter] = useState('');
+  const [dataFinalFilter, setDataFinalFilter] = useState('');
+  const [lancadoFilter, setLancadoFilter] = useState<string>('todos');
+  const [validadoFilter, setValidadoFilter] = useState<string>('todos');
   const [selectedProtocolo, setSelectedProtocolo] = useState<Protocolo | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -56,15 +60,38 @@ export default function Protocolos() {
       p.numero.toLowerCase().includes(search.toLowerCase()) ||
       p.motorista.nome.toLowerCase().includes(search.toLowerCase()) ||
       p.motorista.whatsapp.includes(search) ||
-      p.motorista.codigoPdv?.includes(search) ||
       p.codigoPdv?.includes(search) ||
       p.mapa?.includes(search);
     
     const statusMatch = p.status === activeTab;
-    const motoristaMatch = motoristaFilter === 'todos' || p.motorista.id === motoristaFilter;
-    const dataMatch = !dataFilter || p.data.includes(dataFilter.split('-').reverse().join('/'));
     
-    return searchMatch && statusMatch && motoristaMatch && dataMatch;
+    // Filtro de data inicial
+    let dataInicialMatch = true;
+    if (dataInicialFilter) {
+      const dataProtocolo = parse(p.data, 'dd/MM/yyyy', new Date());
+      const dataInicial = parseISO(dataInicialFilter);
+      dataInicialMatch = !isBefore(dataProtocolo, dataInicial);
+    }
+    
+    // Filtro de data final
+    let dataFinalMatch = true;
+    if (dataFinalFilter) {
+      const dataProtocolo = parse(p.data, 'dd/MM/yyyy', new Date());
+      const dataFinal = parseISO(dataFinalFilter);
+      dataFinalMatch = !isAfter(dataProtocolo, dataFinal);
+    }
+    
+    // Filtro de lançado
+    const lancadoMatch = lancadoFilter === 'todos' || 
+      (lancadoFilter === 'sim' && p.lancado) || 
+      (lancadoFilter === 'nao' && !p.lancado);
+    
+    // Filtro de validado
+    const validadoMatch = validadoFilter === 'todos' || 
+      (validadoFilter === 'sim' && p.validacao) || 
+      (validadoFilter === 'nao' && !p.validacao);
+    
+    return searchMatch && statusMatch && dataInicialMatch && dataFinalMatch && lancadoMatch && validadoMatch;
   });
 
   const handleEnviarLancar = (id: string) => {
@@ -82,6 +109,10 @@ export default function Protocolos() {
   };
 
   const handleToggleLancado = (id: string) => {
+    if (!canLaunch) {
+      toast.error('Apenas Distribuição ou Admin pode lançar protocolos!');
+      return;
+    }
     const protocolo = protocolos.find(p => p.id === id);
     if (!protocolo?.validacao) {
       toast.error('A validação do conferente é obrigatória antes do lançamento!');
@@ -98,6 +129,10 @@ export default function Protocolos() {
   };
 
   const handleToggleValidacao = (id: string) => {
+    if (!canValidate) {
+      toast.error('Apenas Conferente ou Admin pode validar protocolos!');
+      return;
+    }
     setProtocolos(prev => prev.map(p => {
       if (p.id !== id) return p;
       const newValidacao = !p.validacao;
@@ -160,11 +195,13 @@ STATUS: Validado: ${protocolo.validacao ? 'Sim' : 'Não'} | Lançado: ${protocol
   };
 
   const clearFilters = () => {
-    setMotoristaFilter('todos');
-    setDataFilter('');
+    setDataInicialFilter('');
+    setDataFinalFilter('');
+    setLancadoFilter('todos');
+    setValidadoFilter('todos');
   };
 
-  const hasActiveFilters = motoristaFilter !== 'todos' || dataFilter;
+  const hasActiveFilters = dataInicialFilter || dataFinalFilter || lancadoFilter !== 'todos' || validadoFilter !== 'todos';
 
   return (
     <div className="space-y-6">
@@ -189,7 +226,7 @@ STATUS: Validado: ${protocolo.validacao ? 'Sim' : 'Não'} | Lançado: ${protocol
             className="lg:w-auto"
           >
             <Download size={18} className="mr-2" />
-            Download Todos
+            Download
           </Button>
           <Button 
             variant="outline" 
@@ -233,30 +270,52 @@ STATUS: Validado: ${protocolo.validacao ? 'Sim' : 'Não'} | Lançado: ${protocol
 
       {/* Filters */}
       {showFilters && (
-        <div className="card-stats animate-scale-in">
+        <div className="bg-card rounded-xl p-6 shadow-md animate-scale-in">
           <div className="flex flex-wrap gap-4 items-end">
-            <div className="space-y-2 min-w-[180px]">
-              <label className="text-sm font-medium text-muted-foreground">Motorista</label>
-              <Select value={motoristaFilter} onValueChange={setMotoristaFilter}>
+            <div className="space-y-2 min-w-[150px]">
+              <label className="text-sm font-medium text-muted-foreground">Data Inicial</label>
+              <Input
+                type="date"
+                value={dataInicialFilter}
+                onChange={(e) => setDataInicialFilter(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2 min-w-[150px]">
+              <label className="text-sm font-medium text-muted-foreground">Data Final</label>
+              <Input
+                type="date"
+                value={dataFinalFilter}
+                onChange={(e) => setDataFinalFilter(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2 min-w-[130px]">
+              <label className="text-sm font-medium text-muted-foreground">Lançado</label>
+              <Select value={lancadoFilter} onValueChange={setLancadoFilter}>
                 <SelectTrigger>
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todos</SelectItem>
-                  {mockMotoristas.map(m => (
-                    <SelectItem key={m.id} value={m.id}>{m.nome}</SelectItem>
-                  ))}
+                  <SelectItem value="sim">Sim</SelectItem>
+                  <SelectItem value="nao">Não</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             
-            <div className="space-y-2 min-w-[180px]">
-              <label className="text-sm font-medium text-muted-foreground">Data</label>
-              <Input
-                type="date"
-                value={dataFilter}
-                onChange={(e) => setDataFilter(e.target.value)}
-              />
+            <div className="space-y-2 min-w-[130px]">
+              <label className="text-sm font-medium text-muted-foreground">Validado</label>
+              <Select value={validadoFilter} onValueChange={setValidadoFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="sim">Sim</SelectItem>
+                  <SelectItem value="nao">Não</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             
             {hasActiveFilters && (

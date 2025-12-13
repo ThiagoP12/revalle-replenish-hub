@@ -7,27 +7,39 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isAdmin: boolean;
+  isDistribuicao: boolean;
+  isConferente: boolean;
+  canValidate: boolean;
+  canLaunch: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for demo
+// Mock users for demo - 3 níveis
 const mockUsers: (User & { password: string })[] = [
   {
     id: '1',
     nome: 'Administrador',
     email: 'admin@revalle.com',
     nivel: 'admin',
-    unidade: 'Matriz',
+    unidade: 'Todas',
     password: 'admin123'
   },
   {
     id: '2',
-    nome: 'Operador',
-    email: 'operador@revalle.com',
-    nivel: 'comum',
-    unidade: 'Filial 01',
-    password: 'user123'
+    nome: 'Distribuição Juazeiro',
+    email: 'distribuicao@revalle.com',
+    nivel: 'distribuicao',
+    unidade: 'Juazeiro',
+    password: 'dist123'
+  },
+  {
+    id: '3',
+    nome: 'Conferente Juazeiro',
+    email: 'conferente@revalle.com',
+    nivel: 'conferente',
+    unidade: 'Juazeiro',
+    password: 'conf123'
   }
 ];
 
@@ -54,13 +66,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('revalle_user');
   }, []);
 
+  const isAdmin = user?.nivel === 'admin';
+  const isDistribuicao = user?.nivel === 'distribuicao';
+  const isConferente = user?.nivel === 'conferente';
+
   return (
     <AuthContext.Provider value={{
       user,
       isAuthenticated: !!user,
       login,
       logout,
-      isAdmin: user?.nivel === 'admin'
+      isAdmin,
+      isDistribuicao,
+      isConferente,
+      canValidate: isAdmin || isConferente,
+      canLaunch: isAdmin || isDistribuicao
     }}>
       {children}
     </AuthContext.Provider>

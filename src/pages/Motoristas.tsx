@@ -34,14 +34,12 @@ export default function Motoristas() {
     unidade: '',
     senha: '',
     whatsapp: '',
-    codigoPdv: '',
   });
 
   const filteredMotoristas = motoristas.filter(m => 
     m.nome.toLowerCase().includes(search.toLowerCase()) ||
     m.codigo.toLowerCase().includes(search.toLowerCase()) ||
-    m.whatsapp.includes(search) ||
-    m.codigoPdv?.includes(search)
+    m.whatsapp.includes(search)
   );
 
   const resetForm = () => {
@@ -52,7 +50,6 @@ export default function Motoristas() {
       unidade: '',
       senha: '',
       whatsapp: '',
-      codigoPdv: '',
     });
     setEditingMotorista(null);
   };
@@ -66,7 +63,6 @@ export default function Motoristas() {
       unidade: motorista.unidade,
       senha: '',
       whatsapp: motorista.whatsapp,
-      codigoPdv: motorista.codigoPdv || '',
     });
     setIsDialogOpen(true);
   };
@@ -185,7 +181,7 @@ export default function Motoristas() {
                   />
                 </div>
                 
-                <div className="space-y-2">
+                <div className="col-span-2 space-y-2">
                   <Label htmlFor="senha">Senha</Label>
                   <Input
                     id="senha"
@@ -193,15 +189,6 @@ export default function Motoristas() {
                     value={formData.senha}
                     onChange={(e) => setFormData(prev => ({ ...prev, senha: e.target.value }))}
                     required={!editingMotorista}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="codigoPdv">Código do PDV (opcional)</Label>
-                  <Input
-                    id="codigoPdv"
-                    value={formData.codigoPdv}
-                    onChange={(e) => setFormData(prev => ({ ...prev, codigoPdv: e.target.value }))}
                   />
                 </div>
               </div>
@@ -236,7 +223,6 @@ export default function Motoristas() {
               <th className="text-left p-4">Código</th>
               <th className="text-left p-4">Unidade</th>
               <th className="text-left p-4">WhatsApp</th>
-              <th className="text-left p-4">Código PDV</th>
               <th className="text-right p-4 rounded-tr-lg">Ações</th>
             </tr>
           </thead>
@@ -265,7 +251,6 @@ export default function Motoristas() {
                     {motorista.whatsapp}
                   </span>
                 </td>
-                <td className="p-4">{motorista.codigoPdv || '-'}</td>
                 <td className="p-4">
                   <div className="flex justify-end gap-2">
                     <Button

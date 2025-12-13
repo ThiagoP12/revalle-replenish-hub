@@ -9,6 +9,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Protocolos from "./pages/Protocolos";
 import Motoristas from "./pages/Motoristas";
+import Unidades from "./pages/Unidades";
 import Usuarios from "./pages/Usuarios";
 import Configuracoes from "./pages/Configuracoes";
 import NotFound from "./pages/NotFound";
@@ -29,6 +30,7 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/protocolos" element={<Protocolos />} />
               <Route path="/motoristas" element={<Motoristas />} />
+              <Route path="/unidades" element={<Unidades />} />
               <Route path="/usuarios" element={<Usuarios />} />
               <Route path="/configuracoes" element={<Configuracoes />} />
             </Route>

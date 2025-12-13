@@ -1,4 +1,14 @@
-import { Motorista, Protocolo, DashboardStats, RankingItem } from '@/types';
+import { Motorista, Protocolo, DashboardStats, RankingItem, Unidade } from '@/types';
+
+export const mockUnidades: Unidade[] = [
+  { id: '1', nome: 'Juazeiro', codigo: 'JUA', createdAt: '2024-01-01' },
+  { id: '2', nome: 'Bonfim', codigo: 'BON', createdAt: '2024-01-01' },
+  { id: '3', nome: 'Petrolina', codigo: 'PET', createdAt: '2024-01-01' },
+  { id: '4', nome: 'Ribeira do Pombal', codigo: 'RDP', createdAt: '2024-01-01' },
+  { id: '5', nome: 'Paulo Afonso', codigo: 'PAF', createdAt: '2024-01-01' },
+  { id: '6', nome: 'Alagoinhas', codigo: 'ALA', createdAt: '2024-01-01' },
+  { id: '7', nome: 'Serrinha', codigo: 'SER', createdAt: '2024-01-01' },
+];
 
 export const mockMotoristas: Motorista[] = [
   {
@@ -9,7 +19,6 @@ export const mockMotoristas: Motorista[] = [
     unidade: 'Alagoinhas',
     whatsapp: '5571999859841',
     email: 'carlos.silva@revalle.com',
-    codigoPdv: 'PDV001',
     createdAt: '2024-01-10'
   },
   {
@@ -17,10 +26,9 @@ export const mockMotoristas: Motorista[] = [
     nome: 'José Santos',
     codigo: '60122',
     dataNascimento: '1990-07-22',
-    unidade: 'Salvador',
+    unidade: 'Juazeiro',
     whatsapp: '5571988887777',
     email: 'jose.santos@revalle.com',
-    codigoPdv: 'PDV002',
     createdAt: '2024-01-12'
   },
   {
@@ -28,7 +36,7 @@ export const mockMotoristas: Motorista[] = [
     nome: 'Marcos Oliveira',
     codigo: '60123',
     dataNascimento: '1988-11-08',
-    unidade: 'Feira de Santana',
+    unidade: 'Petrolina',
     whatsapp: '5571977776666',
     email: 'marcos.oliveira@revalle.com',
     createdAt: '2024-01-15'
@@ -41,7 +49,6 @@ export const mockMotoristas: Motorista[] = [
     unidade: 'Alagoinhas',
     whatsapp: '5571966665555',
     email: 'roberto.almeida@revalle.com',
-    codigoPdv: 'PDV004',
     createdAt: '2024-01-18'
   },
 ];
@@ -287,4 +294,4 @@ export const topProdutos: RankingItem[] = [
   { id: '5', nome: 'FANTA LARANJA 2L', quantidade: 10 },
 ];
 
-export const unidades = ['Alagoinhas', 'Salvador', 'Feira de Santana', 'Vitória da Conquista'];
+export const unidades = mockUnidades.map(u => u.nome);

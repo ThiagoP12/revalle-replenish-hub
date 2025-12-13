@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'comum';
+export type UserRole = 'admin' | 'distribuicao' | 'conferente';
 
 export interface User {
   id: string;
@@ -16,7 +16,13 @@ export interface Motorista {
   unidade: string;
   whatsapp: string;
   email?: string;
-  codigoPdv?: string;
+  createdAt: string;
+}
+
+export interface Unidade {
+  id: string;
+  nome: string;
+  codigo: string;
   createdAt: string;
 }
 
