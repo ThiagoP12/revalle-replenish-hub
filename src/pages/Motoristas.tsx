@@ -23,9 +23,11 @@ import {
 } from '@/components/ui/dialog';
 import { Plus, Pencil, Trash2, MapPin, Hash, Truck, Users, Building, Loader2 } from 'lucide-react';
 import { useMotoristasDB } from '@/hooks/useMotoristasDB';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Motoristas() {
   const { motoristas, isLoading, addMotorista, updateMotorista, deleteMotorista, importMotoristas } = useMotoristasDB();
+  const { isAdmin, user } = useAuth();
   const [search, setSearch] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMotorista, setEditingMotorista] = useState<Motorista | null>(null);
@@ -43,7 +45,12 @@ export default function Motoristas() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  const filteredMotoristas = motoristas.filter(m => 
+  // Filtrar motoristas por unidade do usuário (exceto admin)
+  const motoristasFiltradosPorUnidade = isAdmin 
+    ? motoristas 
+    : motoristas.filter(m => m.unidade === user?.unidade);
+
+  const filteredMotoristas = motoristasFiltradosPorUnidade.filter(m => 
     m.nome.toLowerCase().includes(search.toLowerCase()) ||
     m.codigo.toLowerCase().includes(search.toLowerCase())
   );
