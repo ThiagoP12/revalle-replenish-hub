@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { StatCard } from '@/components/ui/StatCard';
 import { RankingCard } from '@/components/ui/RankingCard';
 import { AlertCard } from '@/components/ui/AlertCard';
-import { topMotoristas, topClientes, topProdutos, mockUnidades } from '@/data/mockData';
+import { mockUnidades } from '@/data/mockData';
 import { useProtocolos } from '@/contexts/ProtocolosContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { FileText, CheckCircle, Clock, Truck, Calendar, Users, Building2, Package, Download, Eye, TrendingUp } from 'lucide-react';
@@ -113,29 +113,48 @@ export default function Dashboard() {
     return { emAberto, emAndamento, encerrados, totalProtocolos, motoristasUnicos, totalHoje, tendenciaHoje };
   }, [protocolosFiltrados]);
 
-  // Alertas
+  // Alertas - respeitando regra SLA (verde <12h, amarelo 12-24h, vermelho >24h)
   const alertas = useMemo(() => {
     const now = new Date();
-    const alerts: { id: string; titulo: string; descricao: string; tipo: 'critico' | 'atencao' }[] = [];
+    const dismissedKey = `dismissed_alerts_${format(now, 'yyyy-MM-dd')}`;
+    const dismissed = JSON.parse(localStorage.getItem(dismissedKey) || '[]') as string[];
+    
+    const alerts: { id: string; titulo: string; descricao: string; tipo: 'critico' | 'atencao' | 'recente'; protocoloNumero: string }[] = [];
     
     protocolosFiltrados.forEach(p => {
-      if (p.status !== 'encerrado') {
+      if (p.status !== 'encerrado' && !dismissed.includes(p.id)) {
         try {
           const horasDiff = differenceInHours(now, parseISO(p.createdAt));
+          const slaHoras = parseInt(p.sla) || horasDiff;
           
-          if (horasDiff > 24) {
+          // 🔴 Crítico: SLA >= 24h
+          if (slaHoras >= 24) {
             alerts.push({
               id: p.id,
               titulo: `Protocolo ${p.numero}`,
-              descricao: `Aberto há ${horasDiff}h - ${p.motorista.nome}`,
-              tipo: 'critico'
+              descricao: `SLA ${slaHoras}h - ${p.motorista.nome}`,
+              tipo: 'critico',
+              protocoloNumero: p.numero
             });
-          } else if (horasDiff > 12) {
+          } 
+          // 🟡 Atenção: SLA 12-24h
+          else if (slaHoras >= 12) {
             alerts.push({
               id: p.id,
               titulo: `Protocolo ${p.numero}`,
-              descricao: `Aberto há ${horasDiff}h - ${p.motorista.nome}`,
-              tipo: 'atencao'
+              descricao: `SLA ${slaHoras}h - ${p.motorista.nome}`,
+              tipo: 'atencao',
+              protocoloNumero: p.numero
+            });
+          } 
+          // 🆕 Recente: Criado há menos de 1h (para verificação)
+          else if (horasDiff < 1) {
+            alerts.push({
+              id: p.id,
+              titulo: `Protocolo ${p.numero}`,
+              descricao: `Recém-criado - Verificar ${p.motorista.nome}`,
+              tipo: 'recente',
+              protocoloNumero: p.numero
             });
           }
         } catch {
@@ -144,7 +163,11 @@ export default function Dashboard() {
       }
     });
     
-    return alerts.slice(0, 5);
+    // Ordenar: críticos primeiro, depois atenção, depois recentes
+    return alerts.sort((a, b) => {
+      const ordem = { critico: 0, atencao: 1, recente: 2 };
+      return ordem[a.tipo] - ordem[b.tipo];
+    });
   }, [protocolosFiltrados]);
 
   // Dados do gráfico de pizza
@@ -188,6 +211,46 @@ export default function Dashboard() {
   const recentProtocolos = useMemo(() => 
     protocolosFiltrados.slice(0, 5),
   [protocolosFiltrados]);
+
+  // TOP 5 Motoristas (calculado dos protocolos reais)
+  const topMotoristasReal = useMemo(() => {
+    const contagem: Record<string, number> = {};
+    protocolosFiltrados.forEach(p => {
+      const nome = p.motorista.nome;
+      contagem[nome] = (contagem[nome] || 0) + 1;
+    });
+    return Object.entries(contagem)
+      .map(([nome, quantidade], index) => ({ id: `motorista-${index}`, nome, quantidade }))
+      .sort((a, b) => b.quantidade - a.quantidade)
+      .slice(0, 5);
+  }, [protocolosFiltrados]);
+
+  // TOP 5 Clientes PDVs (calculado dos protocolos reais)
+  const topClientesReal = useMemo(() => {
+    const contagem: Record<string, number> = {};
+    protocolosFiltrados.forEach(p => {
+      const pdv = p.codigoPdv || 'Sem PDV';
+      contagem[pdv] = (contagem[pdv] || 0) + 1;
+    });
+    return Object.entries(contagem)
+      .map(([nome, quantidade], index) => ({ id: `pdv-${index}`, nome, quantidade }))
+      .sort((a, b) => b.quantidade - a.quantidade)
+      .slice(0, 5);
+  }, [protocolosFiltrados]);
+
+  // TOP 5 Produtos (calculado dos protocolos reais)
+  const topProdutosReal = useMemo(() => {
+    const contagem: Record<string, number> = {};
+    protocolosFiltrados.forEach(p => {
+      p.produtos?.forEach(prod => {
+        contagem[prod.nome] = (contagem[prod.nome] || 0) + prod.quantidade;
+      });
+    });
+    return Object.entries(contagem)
+      .map(([nome, quantidade], index) => ({ id: `produto-${index}`, nome, quantidade }))
+      .sort((a, b) => b.quantidade - a.quantidade)
+      .slice(0, 5);
+  }, [protocolosFiltrados]);
 
   // Saudação
   const saudacao = useMemo(() => {
@@ -271,15 +334,6 @@ export default function Dashboard() {
               </div>
             </div>
             
-            {/* Badge de pendentes */}
-            {stats.emAberto > 0 && (
-              <div className="inline-flex items-center gap-2 mt-3 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20">
-                <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-                <span className="text-sm font-medium text-amber-700">
-                  {stats.emAberto} protocolo{stats.emAberto > 1 ? 's' : ''} aguardando ação
-                </span>
-              </div>
-            )}
           </div>
           
           <div className="flex flex-wrap gap-2 items-center">
@@ -364,21 +418,21 @@ export default function Dashboard() {
         <RankingCard
           title="Top 5 Motoristas"
           icon={<Users className="text-primary" size={20} />}
-          items={topMotoristas}
+          items={topMotoristasReal}
           delay={500}
           variant="primary"
         />
         <RankingCard
           title="Top 5 Clientes (PDVs)"
           icon={<Building2 className="text-sky-500" size={20} />}
-          items={topClientes}
+          items={topClientesReal}
           delay={600}
           variant="info"
         />
         <RankingCard
           title="Top 5 Produtos"
           icon={<Package className="text-emerald-500" size={20} />}
-          items={topProdutos}
+          items={topProdutosReal}
           delay={700}
           variant="success"
         />
