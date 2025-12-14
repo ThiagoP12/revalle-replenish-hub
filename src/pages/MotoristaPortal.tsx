@@ -358,7 +358,7 @@ export default function MotoristaPortal() {
     setPhoto,
     inputRef,
     field,
-    required = true
+    required = false // Fotos opcionais durante teste
   }: {
     label: string;
     photo: string | null;
@@ -367,22 +367,19 @@ export default function MotoristaPortal() {
     field: 'fotoMotoristaPdv' | 'fotoLoteProduto' | 'fotoAvaria';
     required?: boolean;
   }) => {
-    const status = getFieldStatus(field, photo);
-    const showValidation = touched[field];
+    const hasPhoto = !!photo;
     
     return (
       <div className={cn(
         "bg-muted/30 rounded-xl p-3 border-2 transition-colors",
-        status === 'valid' && 'border-green-500',
-        status === 'invalid' && 'border-red-500',
-        status === 'neutral' && 'border-border'
+        hasPhoto ? 'border-green-500' : 'border-border'
       )}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-foreground">
-              {label} {required && <span className="text-destructive">*</span>}
+              {label}
             </span>
-            {showValidation && photo && (
+            {hasPhoto && (
               <Check size={16} className="text-green-500" />
             )}
           </div>
@@ -402,11 +399,9 @@ export default function MotoristaPortal() {
           ref={inputRef}
           type="file"
           accept="image/*"
-          capture="environment"
           className="hidden"
           onChange={(e) => {
             handleFotoUpload(e, setPhoto);
-            handleBlur(field);
           }}
         />
         {photo ? (
@@ -417,31 +412,16 @@ export default function MotoristaPortal() {
           <button
             onClick={() => {
               inputRef.current?.click();
-              handleBlur(field);
             }}
-            className={cn(
-              "w-full aspect-[4/3] border-2 border-dashed rounded-lg flex flex-col items-center justify-center gap-3 transition-colors",
-              status === 'invalid' 
-                ? "border-red-400 bg-red-50 dark:bg-red-900/10" 
-                : "border-primary/40 bg-primary/5 hover:bg-primary/10 active:bg-primary/15"
-            )}
+            className="w-full aspect-[4/3] border-2 border-dashed rounded-lg flex flex-col items-center justify-center gap-3 transition-colors border-primary/40 bg-primary/5 hover:bg-primary/10 active:bg-primary/15"
           >
-            <div className={cn(
-              "w-14 h-14 rounded-full flex items-center justify-center",
-              status === 'invalid' ? "bg-red-100 dark:bg-red-900/20" : "bg-primary/10"
-            )}>
-              <Camera size={28} className={status === 'invalid' ? "text-red-500" : "text-primary"} />
+            <div className="w-14 h-14 rounded-full flex items-center justify-center bg-primary/10">
+              <Camera size={28} className="text-primary" />
             </div>
-            <span className={cn("text-sm font-medium", status === 'invalid' ? "text-red-500" : "text-primary")}>
+            <span className="text-sm font-medium text-primary">
               Tirar Foto
             </span>
           </button>
-        )}
-        {showValidation && !photo && required && (
-          <p className="text-xs text-red-500 mt-2 flex items-center gap-1">
-            <AlertCircle size={12} />
-            Foto obrigatória
-          </p>
         )}
       </div>
     );
