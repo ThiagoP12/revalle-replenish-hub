@@ -91,6 +91,9 @@ export default function Protocolos() {
       // Não mostrar protocolos ocultos (exceto para admin que os ocultou)
       if (p.oculto) return false;
       
+      // Filtrar por unidade do usuário (exceto para admin)
+      if (!isAdmin && p.unidadeNome !== user?.unidade) return false;
+      
       const searchMatch = 
         p.numero.toLowerCase().includes(search.toLowerCase()) ||
         p.motorista.nome.toLowerCase().includes(search.toLowerCase()) ||
