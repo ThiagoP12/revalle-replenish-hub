@@ -178,7 +178,7 @@ export function ImportarMotoristasCSV({ onImport }: ImportarMotoristasCSVProps) 
       nome: row.Nome.trim(),
       codigo: String(row['Código promax']).trim(),
       dataNascimento: '',
-      unidade: row.UNIDADE?.trim() || 'Revalle Juazeiro',
+      unidade: 'Revalle Juazeiro',
       funcao: mapFuncao(row.Função || ''),
       setor: mapSetor(row.Setor || ''),
       senha: row.Senha?.trim() || String(row['Código promax']).trim(),
