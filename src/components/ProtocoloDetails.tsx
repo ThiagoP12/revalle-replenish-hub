@@ -488,41 +488,41 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
               </div>
             </div>
 
-            {/* Produtos Recebidos - Card separado */}
-            <div className="bg-muted/30 dark:bg-muted/10 rounded-xl p-6 border border-border shadow-sm">
-              <h3 className="font-bold text-base text-foreground mb-4 flex items-center gap-2 uppercase tracking-wide">
+            {/* Produtos Recebidos - Estilo limpo como na imagem */}
+            <div className="bg-background rounded-xl p-6 border border-border shadow-sm">
+              <h3 className="font-bold text-base text-foreground mb-4 flex items-center gap-2">
                 <Package size={20} className="text-muted-foreground" />
-                PRODUTOS RECEBIDOS
+                Produtos Recebidos
               </h3>
               {protocolo.produtos && protocolo.produtos.length > 0 ? (
-                <div className="overflow-x-auto rounded-lg border border-border bg-background">
-                  <table className="w-full text-base">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
                     <thead>
-                      <tr className="bg-muted/50 dark:bg-muted/20 border-b border-border">
-                        <th className="text-left p-4 font-bold text-foreground uppercase border-r border-border">CÓDIGO</th>
-                        <th className="text-left p-4 font-bold text-foreground uppercase border-r border-border">PRODUTO</th>
-                        <th className="text-left p-4 font-bold text-foreground uppercase border-r border-border">UNIDADE</th>
-                        <th className="text-center p-4 font-bold text-foreground uppercase border-r border-border">QTD</th>
-                        <th className="text-left p-4 font-bold text-foreground uppercase border-r border-border">VALIDADE</th>
-                        <th className="text-left p-4 font-bold text-foreground uppercase">OBSERVAÇÃO</th>
+                      <tr className="bg-slate-100 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                        <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700">Código</th>
+                        <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700">Produto</th>
+                        <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700">Unidade</th>
+                        <th className="text-center px-4 py-3 font-semibold text-slate-600 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700">Qtd</th>
+                        <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700">Validade</th>
+                        <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-300">Observação</th>
                       </tr>
                     </thead>
                     <tbody>
                       {protocolo.produtos.map((produto, index) => (
-                        <tr key={index} className="border-b border-border last:border-b-0 transition-colors hover:bg-muted/30 bg-background">
-                          <td className="p-4 font-mono text-foreground border-r border-border">{produto.codigo}</td>
-                          <td className="p-4 font-medium border-r border-border">{produto.nome}</td>
-                          <td className="p-4 border-r border-border">{produto.unidade}</td>
-                          <td className="p-4 text-center font-bold text-foreground border-r border-border">{produto.quantidade}</td>
-                          <td className="p-4 border-r border-border">{produto.validade}</td>
-                          <td className="p-4 text-muted-foreground">{produto.observacao || '-'}</td>
+                        <tr key={index} className="border-b border-slate-200 dark:border-slate-700 last:border-b-0 hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                          <td className="px-4 py-3 text-foreground border-r border-slate-200 dark:border-slate-700">{produto.codigo}</td>
+                          <td className="px-4 py-3 text-foreground border-r border-slate-200 dark:border-slate-700">{produto.nome}</td>
+                          <td className="px-4 py-3 text-foreground border-r border-slate-200 dark:border-slate-700">{produto.unidade}</td>
+                          <td className="px-4 py-3 text-center text-foreground border-r border-slate-200 dark:border-slate-700">{produto.quantidade}</td>
+                          <td className="px-4 py-3 text-foreground border-r border-slate-200 dark:border-slate-700">{produto.validade}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{produto.observacao || ''}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               ) : (
-                <p className="text-base text-muted-foreground italic">Nenhum produto registrado</p>
+                <p className="text-sm text-muted-foreground italic">Nenhum produto registrado</p>
               )}
             </div>
 
