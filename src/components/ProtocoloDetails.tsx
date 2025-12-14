@@ -316,161 +316,164 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
               </div>
             </div>
 
-            {/* Informações Gerais */}
-            <div className="bg-white dark:bg-card rounded-xl p-5 border-l-4 border-primary shadow-sm">
-              <h3 className="font-bold text-sm text-primary mb-4 flex items-center gap-2 uppercase tracking-wide">
-                <Clock size={18} className="text-primary" />
-                Informações Gerais
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Protocolo</p>
-                  <p className="font-semibold text-foreground">{protocolo.numero}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Data</p>
-                  <p className="font-semibold text-foreground">{protocolo.data}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Hora</p>
-                  <p className="font-semibold text-foreground">{protocolo.hora}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Tipo de Reposição</p>
-                  <p className="font-semibold text-foreground">{protocolo.tipoReposicao || '-'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Causa</p>
-                  <p className="font-semibold text-foreground">{protocolo.causa || '-'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Unidade</p>
-                  <p className="font-semibold text-foreground">{protocolo.unidadeNome || '-'} <span className="text-muted-foreground text-xs">(ID {protocolo.unidadeId || '-'})</span></p>
+            {/* Card Unificado - Informações Gerais, Motorista e Cliente */}
+            <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+              {/* Seção 1: Informações Gerais */}
+              <div className="p-5 border-b">
+                <h3 className="font-bold text-sm text-foreground mb-4 flex items-center gap-2 uppercase tracking-wide">
+                  <Clock size={18} className="text-primary" />
+                  Informações Gerais
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Protocolo</p>
+                    <p className="font-semibold text-foreground">{protocolo.numero}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Data</p>
+                    <p className="font-semibold text-foreground">{protocolo.data}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Hora</p>
+                    <p className="font-semibold text-foreground">{protocolo.hora}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Tipo de Reposição</p>
+                    <p className="font-semibold text-foreground">{protocolo.tipoReposicao || '-'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Causa</p>
+                    <p className="font-semibold text-foreground">{protocolo.causa || '-'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Unidade</p>
+                    <p className="font-semibold text-foreground">{protocolo.unidadeNome || '-'} <span className="text-muted-foreground text-xs">(ID {protocolo.unidadeId || '-'})</span></p>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Dados do Motorista */}
-            <div className="bg-gradient-to-r from-sky-50 to-blue-50/50 dark:from-sky-950/20 dark:to-blue-950/10 rounded-xl p-5 border-l-4 border-sky-500 shadow-sm">
-              <h3 className="font-bold text-sm text-sky-700 dark:text-sky-400 mb-4 flex items-center gap-2 uppercase tracking-wide">
-                <Truck size={18} className="text-sky-500" />
-                Dados do Motorista
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Código</p>
-                  <p className="font-semibold text-foreground font-mono">{protocolo.motorista.codigo}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Nome</p>
-                  <p className="font-semibold text-foreground">{protocolo.motorista.nome}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">E-mail</p>
-                  <p className="font-semibold text-foreground">{protocolo.motorista.email || '-'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium flex items-center gap-1">
-                    <Phone size={12} />
-                    WhatsApp
-                  </p>
-                  {canEditMotorista && !editandoWhatsapp ? (
-                    <div className="flex items-center gap-2">
+              {/* Seção 2: Dados do Motorista */}
+              <div className="p-5 border-b bg-muted/30">
+                <h3 className="font-bold text-sm text-foreground mb-4 flex items-center gap-2 uppercase tracking-wide">
+                  <Truck size={18} className="text-primary" />
+                  Dados do Motorista
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Código</p>
+                    <p className="font-semibold text-foreground font-mono">{protocolo.motorista.codigo}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Nome</p>
+                    <p className="font-semibold text-foreground">{protocolo.motorista.nome}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">E-mail</p>
+                    <p className="font-semibold text-foreground">{protocolo.motorista.email || '-'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium flex items-center gap-1">
+                      <Phone size={12} />
+                      WhatsApp
+                    </p>
+                    {canEditMotorista && !editandoWhatsapp ? (
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-foreground">{protocolo.motorista.whatsapp || '-'}</p>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 w-6 p-0 text-primary hover:text-primary/80 hover:bg-primary/10"
+                          onClick={() => {
+                            setWhatsappEditado(protocolo.motorista.whatsapp || '');
+                            setEditandoWhatsapp(true);
+                          }}
+                        >
+                          <Pencil size={14} />
+                        </Button>
+                      </div>
+                    ) : canEditMotorista && editandoWhatsapp ? (
+                      <div className="flex items-center gap-2">
+                        <Input 
+                          value={whatsappEditado}
+                          onChange={(e) => setWhatsappEditado(e.target.value)}
+                          placeholder="(XX) XXXXX-XXXX"
+                          className="h-8 w-40"
+                        />
+                        <Button 
+                          size="sm" 
+                          className="h-8 px-2"
+                          onClick={() => {
+                            if (!onUpdateProtocolo || !user) return;
+                            
+                            const protocoloAtualizado = {
+                              ...protocolo,
+                              motorista: {
+                                ...protocolo.motorista,
+                                whatsapp: whatsappEditado
+                              },
+                              observacoesLog: [
+                                ...(protocolo.observacoesLog || []),
+                                {
+                                  id: Date.now().toString(),
+                                  usuarioNome: user.nome,
+                                  usuarioId: user.id,
+                                  data: format(new Date(), 'dd/MM/yyyy'),
+                                  hora: format(new Date(), 'HH:mm'),
+                                  acao: 'Editou WhatsApp',
+                                  texto: `WhatsApp alterado para ${whatsappEditado || '(vazio)'}`
+                                }
+                              ]
+                            };
+                            
+                            onUpdateProtocolo(protocoloAtualizado);
+                            setEditandoWhatsapp(false);
+                            toast.success('WhatsApp atualizado!');
+                          }}
+                        >
+                          <Check size={14} />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 px-2"
+                          onClick={() => setEditandoWhatsapp(false)}
+                        >
+                          <X size={14} />
+                        </Button>
+                      </div>
+                    ) : (
                       <p className="font-semibold text-foreground">{protocolo.motorista.whatsapp || '-'}</p>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-6 w-6 p-0 text-sky-600 hover:text-sky-700 hover:bg-sky-100"
-                        onClick={() => {
-                          setWhatsappEditado(protocolo.motorista.whatsapp || '');
-                          setEditandoWhatsapp(true);
-                        }}
-                      >
-                        <Pencil size={14} />
-                      </Button>
-                    </div>
-                  ) : canEditMotorista && editandoWhatsapp ? (
-                    <div className="flex items-center gap-2">
-                      <Input 
-                        value={whatsappEditado}
-                        onChange={(e) => setWhatsappEditado(e.target.value)}
-                        placeholder="(XX) XXXXX-XXXX"
-                        className="h-8 w-40"
-                      />
-                      <Button 
-                        size="sm" 
-                        className="h-8 px-2 bg-sky-500 hover:bg-sky-600"
-                        onClick={() => {
-                          if (!onUpdateProtocolo || !user) return;
-                          
-                          const protocoloAtualizado = {
-                            ...protocolo,
-                            motorista: {
-                              ...protocolo.motorista,
-                              whatsapp: whatsappEditado
-                            },
-                            observacoesLog: [
-                              ...(protocolo.observacoesLog || []),
-                              {
-                                id: Date.now().toString(),
-                                usuarioNome: user.nome,
-                                usuarioId: user.id,
-                                data: format(new Date(), 'dd/MM/yyyy'),
-                                hora: format(new Date(), 'HH:mm'),
-                                acao: 'Editou WhatsApp',
-                                texto: `WhatsApp alterado para ${whatsappEditado || '(vazio)'}`
-                              }
-                            ]
-                          };
-                          
-                          onUpdateProtocolo(protocoloAtualizado);
-                          setEditandoWhatsapp(false);
-                          toast.success('WhatsApp atualizado!');
-                        }}
-                      >
-                        <Check size={14} />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-8 px-2"
-                        onClick={() => setEditandoWhatsapp(false)}
-                      >
-                        <X size={14} />
-                      </Button>
-                    </div>
-                  ) : (
-                    <p className="font-semibold text-foreground">{protocolo.motorista.whatsapp || '-'}</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Habilitar Reenvio?</p>
-                  <Switch 
-                    checked={habilitarReenvio} 
-                    onCheckedChange={setHabilitarReenvio} 
-                  />
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Habilitar Reenvio?</p>
+                    <Switch 
+                      checked={habilitarReenvio} 
+                      onCheckedChange={setHabilitarReenvio} 
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Informações do Cliente */}
-            <div className="bg-gradient-to-r from-amber-50 to-orange-50/50 dark:from-amber-950/20 dark:to-orange-950/10 rounded-xl p-5 border-l-4 border-amber-500 shadow-sm">
-              <h3 className="font-bold text-sm text-amber-700 dark:text-amber-400 mb-4 flex items-center gap-2 uppercase tracking-wide">
-                <Building2 size={18} className="text-amber-500" />
-                Informações do Cliente
-              </h3>
-              <div className="grid grid-cols-3 gap-5">
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Código PDV</p>
-                  <p className="font-semibold text-foreground font-mono">{protocolo.codigoPdv || '-'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">MAPA</p>
-                  <p className="font-semibold text-foreground">{protocolo.mapa || '-'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Nota Fiscal</p>
-                  <p className="font-semibold text-foreground font-mono">{protocolo.notaFiscal || '-'}</p>
+              {/* Seção 3: Informações do Cliente */}
+              <div className="p-5">
+                <h3 className="font-bold text-sm text-foreground mb-4 flex items-center gap-2 uppercase tracking-wide">
+                  <Building2 size={18} className="text-primary" />
+                  Informações do Cliente
+                </h3>
+                <div className="grid grid-cols-3 gap-5">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Código PDV</p>
+                    <p className="font-semibold text-foreground font-mono">{protocolo.codigoPdv || '-'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">MAPA</p>
+                    <p className="font-semibold text-foreground">{protocolo.mapa || '-'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Nota Fiscal</p>
+                    <p className="font-semibold text-foreground font-mono">{protocolo.notaFiscal || '-'}</p>
+                  </div>
                 </div>
               </div>
             </div>
