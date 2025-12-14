@@ -32,6 +32,12 @@ interface ProtocoloDB {
   oculto: boolean | null;
   habilitar_reenvio: boolean | null;
   created_at: string | null;
+  // Campos de status de envio WhatsApp
+  enviado_lancar_status: string | null;
+  enviado_lancar_erro: string | null;
+  enviado_encerrar_status: string | null;
+  enviado_encerrar_erro: string | null;
+  cliente_telefone: string | null;
 }
 
 // Convert DB record to Protocolo type
@@ -70,7 +76,13 @@ function dbToProtocolo(db: ProtocoloDB): Protocolo {
     arquivoEncerramento: db.arquivo_encerramento || undefined,
     oculto: db.oculto ?? false,
     habilitarReenvio: db.habilitar_reenvio ?? false,
-    createdAt: db.created_at || new Date().toISOString()
+    createdAt: db.created_at || new Date().toISOString(),
+    // Campos de status de envio WhatsApp
+    enviadoLancarStatus: (db.enviado_lancar_status as 'pendente' | 'enviado' | 'erro') || 'pendente',
+    enviadoLancarErro: db.enviado_lancar_erro || undefined,
+    enviadoEncerrarStatus: (db.enviado_encerrar_status as 'pendente' | 'enviado' | 'erro') || 'pendente',
+    enviadoEncerrarErro: db.enviado_encerrar_erro || undefined,
+    clienteTelefone: db.cliente_telefone || undefined
   };
 }
 
@@ -103,7 +115,13 @@ function protocoloToDB(p: Protocolo): Omit<ProtocoloDB, 'id'> {
     arquivo_encerramento: p.arquivoEncerramento || null,
     oculto: p.oculto ?? false,
     habilitar_reenvio: p.habilitarReenvio ?? false,
-    created_at: p.createdAt
+    created_at: p.createdAt,
+    // Campos de status de envio WhatsApp
+    enviado_lancar_status: p.enviadoLancarStatus || 'pendente',
+    enviado_lancar_erro: p.enviadoLancarErro || null,
+    enviado_encerrar_status: p.enviadoEncerrarStatus || 'pendente',
+    enviado_encerrar_erro: p.enviadoEncerrarErro || null,
+    cliente_telefone: p.clienteTelefone || null
   };
 }
 

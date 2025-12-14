@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Protocolo, ObservacaoLog } from '@/types';
 import { useProtocolos } from '@/contexts/ProtocolosContext';
+import { supabase } from '@/integrations/supabase/client';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,7 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Eye, CheckCircle, XCircle, Send, Filter, X, MoreVertical, Phone, Download, Plus, EyeOff, Trash2, FileText } from 'lucide-react';
+import { Eye, CheckCircle, XCircle, Send, Filter, X, MoreVertical, Phone, Download, Plus, EyeOff, Trash2, FileText, RefreshCw, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { differenceInDays, parseISO, format, isAfter, isBefore, parse, isToday } from 'date-fns';
@@ -156,20 +157,127 @@ export default function Protocolos() {
     setCurrentPage(1);
   }, [search, activeTab, dataInicialFilter, dataFinalFilter, lancadoFilter, validadoFilter, pageSize]);
 
-  const handleEnviarLancar = (id: string) => {
+  const [enviandoLancar, setEnviandoLancar] = useState<string | null>(null);
+  const [enviandoEncerrar, setEnviandoEncerrar] = useState<string | null>(null);
+
+  const handleEnviarLancar = async (id: string) => {
     const protocolo = protocolos.find(p => p.id === id);
-    if (protocolo) {
-      updateProtocolo({ ...protocolo, enviadoLancar: true });
+    if (!protocolo) return;
+
+    // Verificar se tem telefone do cliente
+    const clienteTelefone = protocolo.clienteTelefone || prompt('Digite o telefone do cliente (WhatsApp):');
+    if (!clienteTelefone) {
+      toast.error('Telefone do cliente é obrigatório para enviar mensagem');
+      return;
     }
-    toast.success('Notificação de lançamento enviada!');
+
+    setEnviandoLancar(id);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('enviar-whatsapp', {
+        body: {
+          tipo: 'lancar',
+          numero: protocolo.numero,
+          data: protocolo.data,
+          hora: protocolo.hora,
+          mapa: protocolo.mapa,
+          notaFiscal: protocolo.notaFiscal,
+          motoristaNome: protocolo.motorista.nome,
+          motoristaWhatsapp: protocolo.motorista.whatsapp,
+          motoristaEmail: protocolo.motorista.email,
+          unidade: protocolo.unidadeNome,
+          observacaoGeral: protocolo.observacaoGeral,
+          produtos: protocolo.produtos,
+          fotosProtocolo: protocolo.fotosProtocolo,
+          clienteTelefone
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        updateProtocolo({ 
+          ...protocolo, 
+          enviadoLancar: true,
+          enviadoLancarStatus: 'enviado',
+          enviadoLancarErro: undefined,
+          clienteTelefone
+        });
+        toast.success('Mensagem de lançamento enviada com sucesso!');
+      } else {
+        throw new Error(data?.error || 'Erro desconhecido');
+      }
+    } catch (error) {
+      console.error('Erro ao enviar mensagem:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao enviar mensagem';
+      updateProtocolo({ 
+        ...protocolo, 
+        enviadoLancarStatus: 'erro',
+        enviadoLancarErro: errorMessage,
+        clienteTelefone
+      });
+      toast.error(`Falha ao enviar mensagem: ${errorMessage}`);
+    } finally {
+      setEnviandoLancar(null);
+    }
   };
 
-  const handleEnviarEncerrar = (id: string) => {
+  const handleEnviarEncerrar = async (id: string) => {
     const protocolo = protocolos.find(p => p.id === id);
-    if (protocolo) {
-      updateProtocolo({ ...protocolo, enviadoEncerrar: true, status: 'encerrado' });
+    if (!protocolo) return;
+
+    // Verificar se tem telefone do cliente
+    const clienteTelefone = protocolo.clienteTelefone || prompt('Digite o telefone do cliente (WhatsApp):');
+    if (!clienteTelefone) {
+      toast.error('Telefone do cliente é obrigatório para enviar mensagem');
+      return;
     }
-    toast.success('Protocolo encerrado com sucesso!');
+
+    setEnviandoEncerrar(id);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('enviar-whatsapp', {
+        body: {
+          tipo: 'encerrar',
+          numero: protocolo.numero,
+          data: protocolo.data,
+          hora: protocolo.hora,
+          notaFiscal: protocolo.notaFiscal,
+          motoristaNome: protocolo.motorista.nome,
+          unidade: protocolo.unidadeNome,
+          mensagemEncerramento: protocolo.mensagemEncerramento || 'Encerrando protocolo',
+          clienteTelefone
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        updateProtocolo({ 
+          ...protocolo, 
+          enviadoEncerrar: true,
+          enviadoEncerrarStatus: 'enviado',
+          enviadoEncerrarErro: undefined,
+          status: 'encerrado',
+          clienteTelefone
+        });
+        toast.success('Mensagem de encerramento enviada com sucesso!');
+      } else {
+        throw new Error(data?.error || 'Erro desconhecido');
+      }
+    } catch (error) {
+      console.error('Erro ao enviar encerramento:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao enviar mensagem';
+      updateProtocolo({ 
+        ...protocolo, 
+        enviadoEncerrarStatus: 'erro',
+        enviadoEncerrarErro: errorMessage,
+        clienteTelefone
+      });
+      toast.error(`Falha ao enviar encerramento: ${errorMessage}`);
+    } finally {
+      setEnviandoEncerrar(null);
+    }
   };
 
   const criarLogEntry = (acao: string, texto: string): ObservacaoLog => ({
@@ -486,7 +594,7 @@ STATUS: Validado: ${protocolo.validacao ? 'Sim' : 'Não'} | Lançado: ${protocol
               <th className="text-center p-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider border-r border-[#E5E7EB]">Lançado</th>
               <th className="text-center p-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider border-r border-[#E5E7EB]">Env. Lançar</th>
               <th className="text-center p-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider border-r border-[#E5E7EB]">Env. Encerrar</th>
-              <th className="text-right p-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider">Ações</th>
+              <th className="text-center p-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -560,37 +668,78 @@ STATUS: Validado: ${protocolo.validacao ? 'Sim' : 'Não'} | Lançado: ${protocol
                     </button>
                   </td>
                   <td className="p-4 text-center border-r border-[#E5E7EB]">
-                    {protocolo.enviadoLancar ? (
-                      <CheckCircle className="text-green-500 mx-auto" size={22} />
+                    {protocolo.enviadoLancarStatus === 'enviado' || protocolo.enviadoLancar ? (
+                      <span title="Enviado com sucesso"><CheckCircle className="text-green-500 mx-auto" size={22} /></span>
+                    ) : protocolo.enviadoLancarStatus === 'erro' ? (
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="flex items-center gap-1" title={protocolo.enviadoLancarErro || 'Erro ao enviar'}>
+                          <AlertCircle className="text-red-500" size={18} />
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEnviarLancar(protocolo.id)}
+                          className="text-orange-600 hover:text-orange-700 h-6 px-2"
+                          disabled={enviandoLancar === protocolo.id}
+                        >
+                          <RefreshCw size={14} className={enviandoLancar === protocolo.id ? 'animate-spin' : ''} />
+                          <span className="text-xs ml-1">Reenviar</span>
+                        </Button>
+                      </div>
                     ) : (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleEnviarLancar(protocolo.id)}
                         className="text-info hover:text-info/80"
+                        disabled={enviandoLancar === protocolo.id}
                       >
-                        <Send size={16} />
+                        {enviandoLancar === protocolo.id ? (
+                          <RefreshCw size={16} className="animate-spin" />
+                        ) : (
+                          <Send size={16} />
+                        )}
                       </Button>
                     )}
                   </td>
                   <td className="p-4 text-center border-r border-[#E5E7EB]">
-                    {protocolo.enviadoEncerrar ? (
-                      <CheckCircle className="text-green-500 mx-auto" size={22} />
+                    {protocolo.enviadoEncerrarStatus === 'enviado' || protocolo.enviadoEncerrar ? (
+                      <span title="Encerrado com sucesso"><CheckCircle className="text-green-500 mx-auto" size={22} /></span>
+                    ) : protocolo.enviadoEncerrarStatus === 'erro' ? (
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="flex items-center gap-1" title={protocolo.enviadoEncerrarErro || 'Erro ao enviar'}>
+                          <AlertCircle className="text-red-500" size={18} />
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEnviarEncerrar(protocolo.id)}
+                          className="text-orange-600 hover:text-orange-700 h-6 px-2"
+                          disabled={enviandoEncerrar === protocolo.id || !protocolo.lancado || !protocolo.validacao}
+                        >
+                          <RefreshCw size={14} className={enviandoEncerrar === protocolo.id ? 'animate-spin' : ''} />
+                          <span className="text-xs ml-1">Reenviar</span>
+                        </Button>
+                      </div>
                     ) : (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleEnviarEncerrar(protocolo.id)}
                         className="text-green-600 hover:text-green-700"
-                        disabled={!protocolo.lancado || !protocolo.validacao}
+                        disabled={enviandoEncerrar === protocolo.id || !protocolo.lancado || !protocolo.validacao}
                         title={!protocolo.validacao || !protocolo.lancado ? 'Validação e Lançamento são obrigatórios' : ''}
                       >
-                        <Send size={16} />
+                        {enviandoEncerrar === protocolo.id ? (
+                          <RefreshCw size={16} className="animate-spin" />
+                        ) : (
+                          <Send size={16} />
+                        )}
                       </Button>
                     )}
                   </td>
                   <td className="p-4">
-                    <div className="flex justify-end items-center gap-2">
+                    <div className="flex justify-center items-center gap-2">
                       {/* Botão olho verde - sempre visível */}
                       <Button 
                         variant="outline" 

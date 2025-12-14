@@ -66,11 +66,16 @@ export type Database = {
         Row: {
           arquivo_encerramento: string | null
           causa: string | null
+          cliente_telefone: string | null
           codigo_pdv: string | null
           created_at: string | null
           data: string
           enviado_encerrar: boolean | null
+          enviado_encerrar_erro: string | null
+          enviado_encerrar_status: string | null
           enviado_lancar: boolean | null
+          enviado_lancar_erro: string | null
+          enviado_lancar_status: string | null
           fotos_protocolo: Json | null
           habilitar_reenvio: boolean | null
           hora: string
@@ -96,11 +101,16 @@ export type Database = {
         Insert: {
           arquivo_encerramento?: string | null
           causa?: string | null
+          cliente_telefone?: string | null
           codigo_pdv?: string | null
           created_at?: string | null
           data: string
           enviado_encerrar?: boolean | null
+          enviado_encerrar_erro?: string | null
+          enviado_encerrar_status?: string | null
           enviado_lancar?: boolean | null
+          enviado_lancar_erro?: string | null
+          enviado_lancar_status?: string | null
           fotos_protocolo?: Json | null
           habilitar_reenvio?: boolean | null
           hora: string
@@ -126,11 +136,16 @@ export type Database = {
         Update: {
           arquivo_encerramento?: string | null
           causa?: string | null
+          cliente_telefone?: string | null
           codigo_pdv?: string | null
           created_at?: string | null
           data?: string
           enviado_encerrar?: boolean | null
+          enviado_encerrar_erro?: string | null
+          enviado_encerrar_status?: string | null
           enviado_lancar?: boolean | null
+          enviado_lancar_erro?: string | null
+          enviado_lancar_status?: string | null
           fotos_protocolo?: Json | null
           habilitar_reenvio?: boolean | null
           hora?: string
