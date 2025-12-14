@@ -30,7 +30,8 @@ import {
   X,
   Check,
   Truck,
-  Phone
+  Phone,
+  Camera
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -72,6 +73,29 @@ export function ProtocoloDetails({
 
   const canGoPrevious = currentIndex > 0;
   const canGoNext = currentIndex < protocolos.length - 1;
+
+  // Coletar todas as fotos disponíveis
+  const todasFotos: { url: string; label: string }[] = [];
+  
+  // Fotos do array protocolo.fotos
+  if (protocolo.fotos && protocolo.fotos.length > 0) {
+    protocolo.fotos.forEach((foto, index) => {
+      todasFotos.push({ url: foto, label: `Foto ${index + 1}` });
+    });
+  }
+  
+  // Fotos do objeto fotosProtocolo
+  if (protocolo.fotosProtocolo) {
+    if (protocolo.fotosProtocolo.fotoMotoristaPdv) {
+      todasFotos.push({ url: protocolo.fotosProtocolo.fotoMotoristaPdv, label: 'Motorista/PDV' });
+    }
+    if (protocolo.fotosProtocolo.fotoLoteProduto) {
+      todasFotos.push({ url: protocolo.fotosProtocolo.fotoLoteProduto, label: 'Lote Produto' });
+    }
+    if (protocolo.fotosProtocolo.fotoAvaria) {
+      todasFotos.push({ url: protocolo.fotosProtocolo.fotoAvaria, label: 'Avaria' });
+    }
+  }
 
   const handleSalvarObservacao = () => {
     if (!novaObservacao.trim() || !user || !onUpdateProtocolo) return;
@@ -268,9 +292,9 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
 
           <div className="space-y-5 p-6">
             {/* Status do Protocolo */}
-            <div className="bg-gradient-to-r from-emerald-50 to-teal-50/50 dark:from-emerald-950/20 dark:to-teal-950/10 rounded-xl p-5 border-l-4 border-emerald-500 shadow-sm">
-              <h3 className="font-bold text-sm text-emerald-700 dark:text-emerald-400 mb-4 flex items-center gap-2 uppercase tracking-wide">
-                <CheckCircle size={18} className="text-emerald-500" />
+            <div className="bg-card rounded-xl p-5 border shadow-sm">
+              <h3 className="font-bold text-sm text-foreground mb-4 flex items-center gap-2 uppercase tracking-wide">
+                <CheckCircle size={18} className="text-primary" />
                 Status do Protocolo
               </h3>
               <div className="flex flex-wrap items-center gap-4">
@@ -316,7 +340,7 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
               </div>
             </div>
 
-            {/* Card Unificado - Informações Gerais, Motorista e Cliente */}
+            {/* Card Unificado - Informações Gerais, Observação, Produtos, Motorista e Cliente */}
             <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
               {/* Seção 1: Informações Gerais */}
               <div className="p-5 border-b">
@@ -352,7 +376,54 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
                 </div>
               </div>
 
-              {/* Seção 2: Dados do Motorista */}
+              {/* Seção 2: Observação Geral */}
+              <div className="p-5 border-b bg-muted/20">
+                <h3 className="font-bold text-sm text-foreground mb-3 flex items-center gap-2 uppercase tracking-wide">
+                  <MessageSquare size={18} className="text-primary" />
+                  Observação Geral
+                </h3>
+                <p className="text-sm text-foreground leading-relaxed">{protocolo.observacaoGeral || '-'}</p>
+              </div>
+
+              {/* Seção 3: Produtos Recebidos */}
+              <div className="p-5 border-b">
+                <h3 className="font-bold text-sm text-foreground mb-4 flex items-center gap-2 uppercase tracking-wide">
+                  <Package size={18} className="text-primary" />
+                  Produtos Recebidos
+                </h3>
+                {protocolo.produtos && protocolo.produtos.length > 0 ? (
+                  <div className="overflow-x-auto rounded-lg border">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-muted">
+                          <th className="text-left p-3 font-semibold text-foreground">Código</th>
+                          <th className="text-left p-3 font-semibold text-foreground">Produto</th>
+                          <th className="text-left p-3 font-semibold text-foreground">Unidade</th>
+                          <th className="text-center p-3 font-semibold text-foreground">Qtd</th>
+                          <th className="text-left p-3 font-semibold text-foreground">Validade</th>
+                          <th className="text-left p-3 font-semibold text-foreground">Observação</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {protocolo.produtos.map((produto, index) => (
+                          <tr key={index} className={`border-b border-border/50 transition-colors hover:bg-muted/50 ${index % 2 === 0 ? 'bg-muted/30' : ''}`}>
+                            <td className="p-3 font-mono text-primary">{produto.codigo}</td>
+                            <td className="p-3 font-medium">{produto.nome}</td>
+                            <td className="p-3">{produto.unidade}</td>
+                            <td className="p-3 text-center font-bold text-primary">{produto.quantidade}</td>
+                            <td className="p-3">{produto.validade}</td>
+                            <td className="p-3 text-muted-foreground">{produto.observacao || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Nenhum produto registrado</p>
+                )}
+              </div>
+
+              {/* Seção 4: Dados do Motorista */}
               <div className="p-5 border-b bg-muted/30">
                 <h3 className="font-bold text-sm text-foreground mb-4 flex items-center gap-2 uppercase tracking-wide">
                   <Truck size={18} className="text-primary" />
@@ -455,7 +526,7 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
                 </div>
               </div>
 
-              {/* Seção 3: Informações do Cliente */}
+              {/* Seção 5: Informações do Cliente */}
               <div className="p-5">
                 <h3 className="font-bold text-sm text-foreground mb-4 flex items-center gap-2 uppercase tracking-wide">
                   <Building2 size={18} className="text-primary" />
@@ -478,72 +549,28 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
               </div>
             </div>
 
-            {/* Observação Geral */}
-            <div className="bg-white dark:bg-card rounded-xl p-5 border-l-4 border-violet-500 shadow-sm">
-              <h3 className="font-bold text-sm text-violet-700 dark:text-violet-400 mb-3 flex items-center gap-2 uppercase tracking-wide">
-                <MessageSquare size={18} className="text-violet-500" />
-                Observação Geral
-              </h3>
-              <p className="text-sm text-foreground leading-relaxed">{protocolo.observacaoGeral || '-'}</p>
-            </div>
-
-            {/* Produtos Recebidos */}
-            <div className="bg-white dark:bg-card rounded-xl p-5 border-l-4 border-indigo-500 shadow-sm">
-              <h3 className="font-bold text-sm text-indigo-700 dark:text-indigo-400 mb-4 flex items-center gap-2 uppercase tracking-wide">
-                <Package size={18} className="text-indigo-500" />
-                Produtos Recebidos
-              </h3>
-              {protocolo.produtos && protocolo.produtos.length > 0 ? (
-                <div className="overflow-x-auto rounded-lg border">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-indigo-600 text-white">
-                        <th className="text-left p-3 font-semibold">Código</th>
-                        <th className="text-left p-3 font-semibold">Produto</th>
-                        <th className="text-left p-3 font-semibold">Unidade</th>
-                        <th className="text-center p-3 font-semibold">Qtd</th>
-                        <th className="text-left p-3 font-semibold">Validade</th>
-                        <th className="text-left p-3 font-semibold">Observação</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {protocolo.produtos.map((produto, index) => (
-                        <tr key={index} className={`border-b border-border/50 transition-colors hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 ${index % 2 === 0 ? 'bg-muted/30' : ''}`}>
-                          <td className="p-3 font-mono text-indigo-600 dark:text-indigo-400">{produto.codigo}</td>
-                          <td className="p-3 font-medium">{produto.nome}</td>
-                          <td className="p-3">{produto.unidade}</td>
-                          <td className="p-3 text-center font-bold text-indigo-600 dark:text-indigo-400">{produto.quantidade}</td>
-                          <td className="p-3">{produto.validade}</td>
-                          <td className="p-3 text-muted-foreground">{produto.observacao || '-'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground italic">Nenhum produto registrado</p>
-              )}
-            </div>
-
             {/* Fotos Enviadas */}
-            {protocolo.fotos && protocolo.fotos.length > 0 && (
-              <div className="bg-gradient-to-r from-pink-50 to-rose-50/50 dark:from-pink-950/20 dark:to-rose-950/10 rounded-xl p-5 border-l-4 border-pink-500 shadow-sm">
-                <h3 className="font-bold text-sm text-pink-700 dark:text-pink-400 mb-4 flex items-center gap-2 uppercase tracking-wide">
-                  <Image size={18} className="text-pink-500" />
+            {todasFotos.length > 0 && (
+              <div className="bg-card rounded-xl p-5 border shadow-sm">
+                <h3 className="font-bold text-sm text-foreground mb-4 flex items-center gap-2 uppercase tracking-wide">
+                  <Camera size={18} className="text-primary" />
                   Fotos Enviadas
                 </h3>
                 <div className="flex flex-wrap gap-3">
-                  {protocolo.fotos.map((foto, index) => (
+                  {todasFotos.map((foto, index) => (
                     <button
                       key={index}
-                      onClick={() => setSelectedImage(foto)}
-                      className="w-20 h-20 rounded-lg overflow-hidden border-2 border-pink-200 hover:border-pink-500 transition-all hover:scale-105 shadow-sm"
+                      onClick={() => setSelectedImage(foto.url)}
+                      className="group relative w-24 h-24 rounded-lg overflow-hidden border-2 border-border hover:border-primary transition-all hover:scale-105 shadow-sm"
                     >
                       <img 
-                        src={foto} 
-                        alt={`Foto ${index + 1}`} 
+                        src={foto.url} 
+                        alt={foto.label} 
                         className="w-full h-full object-cover"
                       />
+                      <div className="absolute bottom-0 left-0 right-0 bg-background/80 text-xs text-center py-1 font-medium text-foreground">
+                        {foto.label}
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -551,9 +578,9 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
             )}
 
             {/* Seção de Observações - Todos podem comentar */}
-            <div className="bg-white dark:bg-card rounded-xl p-5 border-l-4 border-cyan-500 shadow-sm">
-              <h3 className="font-bold text-sm text-cyan-700 dark:text-cyan-400 mb-4 flex items-center gap-2 uppercase tracking-wide">
-                <MessageSquare size={18} className="text-cyan-500" />
+            <div className="bg-card rounded-xl p-5 border shadow-sm">
+              <h3 className="font-bold text-sm text-foreground mb-4 flex items-center gap-2 uppercase tracking-wide">
+                <MessageSquare size={18} className="text-primary" />
                 Histórico de Observações
               </h3>
               
@@ -561,11 +588,9 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
               {protocolo.observacoesLog && protocolo.observacoesLog.length > 0 && (
                 <div className="space-y-3 mb-4 max-h-56 overflow-y-auto pr-2">
                   {[...protocolo.observacoesLog].reverse().map((log, index) => {
-                    const colors = ['bg-cyan-500', 'bg-teal-500', 'bg-blue-500', 'bg-indigo-500', 'bg-violet-500'];
-                    const avatarColor = colors[log.usuarioNome.charCodeAt(0) % colors.length];
                     return (
                       <div key={log.id} className="flex gap-3 p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
-                        <div className={`w-8 h-8 rounded-full ${avatarColor} flex items-center justify-center text-white text-xs font-bold shrink-0`}>
+                        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold shrink-0">
                           {log.usuarioNome.charAt(0).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -573,7 +598,7 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
                             <span className="font-semibold text-foreground">{log.usuarioNome}</span>
                             <span className="text-muted-foreground">•</span>
                             <span className="text-muted-foreground">{log.data} às {log.hora}</span>
-                            <span className="px-2 py-0.5 bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400 rounded-full text-[10px] font-medium">
+                            <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-[10px] font-medium">
                               {log.acao}
                             </span>
                           </div>
@@ -592,9 +617,9 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
                     placeholder="Digite sua observação..."
                     value={novaObservacao}
                     onChange={(e) => setNovaObservacao(e.target.value)}
-                    className="min-h-[80px] border-cyan-200 focus:border-cyan-500"
+                    className="min-h-[80px]"
                   />
-                  <Button onClick={handleSalvarObservacao} disabled={!novaObservacao.trim()} className="bg-cyan-600 hover:bg-cyan-700">
+                  <Button onClick={handleSalvarObservacao} disabled={!novaObservacao.trim()}>
                     Salvar observação
                   </Button>
                 </div>
@@ -602,9 +627,9 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
             </div>
 
             {/* Seção de Encerramento */}
-            <div className="bg-gradient-to-r from-red-50 to-rose-50/50 dark:from-red-950/20 dark:to-rose-950/10 rounded-xl p-5 border-l-4 border-red-500 shadow-sm">
-              <h3 className="font-bold text-sm text-red-700 dark:text-red-400 mb-4 flex items-center gap-2 uppercase tracking-wide">
-                <Lock size={18} className="text-red-500" />
+            <div className="bg-card rounded-xl p-5 border shadow-sm">
+              <h3 className="font-bold text-sm text-foreground mb-4 flex items-center gap-2 uppercase tracking-wide">
+                <Lock size={18} className="text-primary" />
                 Encerramento
               </h3>
               
@@ -617,7 +642,7 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
                         placeholder="Escreva uma mensagem de encerramento..."
                         value={mensagemEncerramento}
                         onChange={(e) => setMensagemEncerramento(e.target.value)}
-                        className="min-h-[80px] border-red-200 focus:border-red-500"
+                        className="min-h-[80px]"
                       />
                     </div>
                     
@@ -631,7 +656,7 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
                           className="max-w-xs"
                         />
                         {arquivoAnexado && (
-                          <span className="text-xs text-green-600 flex items-center gap-1 bg-green-50 px-2 py-1 rounded-full">
+                          <span className="text-xs text-emerald-600 flex items-center gap-1 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-full">
                             <CheckCircle size={14} />
                             {arquivoAnexado.name}
                           </span>
