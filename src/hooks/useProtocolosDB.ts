@@ -89,7 +89,9 @@ function dbToProtocolo(db: ProtocoloDB): Protocolo {
     enviadoEncerrarErro: db.enviado_encerrar_erro || undefined,
     clienteTelefone: db.cliente_telefone || undefined,
     contatoWhatsapp: db.contato_whatsapp || undefined,
-    contatoEmail: db.contato_email || undefined
+    contatoEmail: db.contato_email || undefined,
+    // Mapear unidade do motorista para unidadeNome
+    unidadeNome: db.motorista_unidade || undefined
   };
 }
 
