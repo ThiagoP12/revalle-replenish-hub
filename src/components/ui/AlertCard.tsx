@@ -1,11 +1,15 @@
 import { cn } from '@/lib/utils';
-import { AlertTriangle, Clock } from 'lucide-react';
+import { AlertTriangle, Clock, X, Eye, Sparkles } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
+import { useState, useEffect } from 'react';
 
 interface AlertItem {
   id: string;
   titulo: string;
   descricao: string;
-  tipo: 'critico' | 'atencao';
+  tipo: 'critico' | 'atencao' | 'recente';
+  protocoloNumero?: string;
 }
 
 interface AlertCardProps {
@@ -15,7 +19,67 @@ interface AlertCardProps {
 }
 
 export function AlertCard({ items, className, delay = 0 }: AlertCardProps) {
-  if (items.length === 0) {
+  const navigate = useNavigate();
+  const [dismissedIds, setDismissedIds] = useState<string[]>([]);
+  
+  // Carregar IDs dispensados do localStorage
+  useEffect(() => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const key = `dismissed_alerts_${today}`;
+    const dismissed = JSON.parse(localStorage.getItem(key) || '[]') as string[];
+    setDismissedIds(dismissed);
+  }, []);
+
+  const handleDismiss = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const key = `dismissed_alerts_${today}`;
+    const dismissed = JSON.parse(localStorage.getItem(key) || '[]') as string[];
+    const updated = [...dismissed, id];
+    localStorage.setItem(key, JSON.stringify(updated));
+    setDismissedIds(updated);
+  };
+
+  const handleClick = (id: string) => {
+    navigate(`/protocolos?id=${id}`);
+  };
+
+  const visibleItems = items.filter(item => !dismissedIds.includes(item.id));
+
+  const getAlertStyles = (tipo: AlertItem['tipo']) => {
+    switch (tipo) {
+      case 'critico':
+        return {
+          bg: 'bg-red-500/5 border-red-500 hover:bg-red-500/10',
+          text: 'text-red-700 dark:text-red-400',
+          icon: 'text-red-500'
+        };
+      case 'atencao':
+        return {
+          bg: 'bg-amber-500/5 border-amber-500 hover:bg-amber-500/10',
+          text: 'text-amber-700 dark:text-amber-400',
+          icon: 'text-amber-500'
+        };
+      case 'recente':
+        return {
+          bg: 'bg-blue-500/5 border-blue-500 hover:bg-blue-500/10',
+          text: 'text-blue-700 dark:text-blue-400',
+          icon: 'text-blue-500'
+        };
+    }
+  };
+
+  const getAlertIcon = (tipo: AlertItem['tipo']) => {
+    switch (tipo) {
+      case 'critico':
+      case 'atencao':
+        return AlertTriangle;
+      case 'recente':
+        return Sparkles;
+    }
+  };
+
+  if (visibleItems.length === 0) {
     return (
       <div 
         className={cn('card-stats animate-slide-up', className)}
@@ -38,6 +102,10 @@ export function AlertCard({ items, className, delay = 0 }: AlertCardProps) {
     );
   }
 
+  const criticalCount = visibleItems.filter(i => i.tipo === 'critico').length;
+  const warningCount = visibleItems.filter(i => i.tipo === 'atencao').length;
+  const recentCount = visibleItems.filter(i => i.tipo === 'recente').length;
+
   return (
     <div 
       className={cn('card-stats animate-slide-up', className)}
@@ -50,44 +118,68 @@ export function AlertCard({ items, className, delay = 0 }: AlertCardProps) {
           </div>
           <h3 className="font-heading text-lg font-semibold">Alertas</h3>
         </div>
-        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-red-500 text-white text-xs font-bold">
-          {items.length}
-        </span>
+        <div className="flex items-center gap-1">
+          {criticalCount > 0 && (
+            <span className="flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold">
+              {criticalCount}
+            </span>
+          )}
+          {warningCount > 0 && (
+            <span className="flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full bg-amber-500 text-white text-xs font-bold">
+              {warningCount}
+            </span>
+          )}
+          {recentCount > 0 && (
+            <span className="flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full bg-blue-500 text-white text-xs font-bold">
+              {recentCount}
+            </span>
+          )}
+        </div>
       </div>
       
       <div className="space-y-3 max-h-[280px] overflow-y-auto">
-        {items.map((item) => (
-          <div 
-            key={item.id}
-            className={cn(
-              "p-3 rounded-lg border-l-4 transition-all duration-200 hover:shadow-md",
-              item.tipo === 'critico' 
-                ? "bg-red-500/5 border-red-500" 
-                : "bg-amber-500/5 border-amber-500"
-            )}
-          >
-            <div className="flex items-start gap-2">
-              <AlertTriangle 
-                size={16} 
-                className={cn(
-                  "mt-0.5 shrink-0",
-                  item.tipo === 'critico' ? "text-red-500" : "text-amber-500"
-                )} 
-              />
-              <div className="min-w-0">
-                <p className={cn(
-                  "text-sm font-semibold truncate",
-                  item.tipo === 'critico' ? "text-red-700" : "text-amber-700"
-                )}>
-                  {item.titulo}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                  {item.descricao}
-                </p>
+        {visibleItems.map((item) => {
+          const styles = getAlertStyles(item.tipo);
+          const Icon = getAlertIcon(item.tipo);
+          
+          return (
+            <div 
+              key={item.id}
+              onClick={() => handleClick(item.id)}
+              className={cn(
+                "p-3 rounded-lg border-l-4 transition-all duration-200 cursor-pointer group relative",
+                styles.bg
+              )}
+            >
+              <div className="flex items-start gap-2 pr-8">
+                <Icon 
+                  size={16} 
+                  className={cn("mt-0.5 shrink-0", styles.icon)} 
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className={cn("text-sm font-semibold truncate", styles.text)}>
+                      {item.titulo}
+                    </p>
+                    <Eye size={12} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                    {item.descricao}
+                  </p>
+                </div>
               </div>
+              
+              {/* Botão X para dispensar */}
+              <button
+                onClick={(e) => handleDismiss(e, item.id)}
+                className="absolute top-2 right-2 p-1 rounded-full hover:bg-foreground/10 transition-colors opacity-0 group-hover:opacity-100"
+                title="Dispensar alerta"
+              >
+                <X size={14} className="text-muted-foreground" />
+              </button>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
