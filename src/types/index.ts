@@ -90,6 +90,12 @@ export interface Protocolo {
   mensagemEncerramento?: string;
   arquivoEncerramento?: string;
   oculto?: boolean;
+  // Campos de status de envio WhatsApp
+  enviadoLancarStatus?: 'pendente' | 'enviado' | 'erro';
+  enviadoLancarErro?: string;
+  enviadoEncerrarStatus?: 'pendente' | 'enviado' | 'erro';
+  enviadoEncerrarErro?: string;
+  clienteTelefone?: string;
 }
 
 export interface DashboardStats {
