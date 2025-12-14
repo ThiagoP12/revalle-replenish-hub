@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { mockMotoristas, unidades } from '@/data/mockData';
-import { Motorista } from '@/types';
+import { Motorista, FuncaoMotorista, SetorMotorista } from '@/types';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { TablePagination } from '@/components/ui/TablePagination';
+import { ImportarMotoristasCSV } from '@/components/ImportarMotoristasCSV';
 import { 
   Select,
   SelectContent,
@@ -20,7 +21,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, MapPin, Hash, Truck } from 'lucide-react';
+import { Plus, Pencil, Trash2, MapPin, Hash, Truck, Users, Building } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Motoristas() {
@@ -33,6 +34,8 @@ export default function Motoristas() {
     codigo: '',
     dataNascimento: '',
     unidade: '',
+    funcao: 'motorista' as FuncaoMotorista,
+    setor: 'sede' as SetorMotorista,
     senha: '',
   });
 
@@ -63,6 +66,8 @@ export default function Motoristas() {
       codigo: '',
       dataNascimento: '',
       unidade: '',
+      funcao: 'motorista',
+      setor: 'sede',
       senha: '',
     });
     setEditingMotorista(null);
@@ -75,6 +80,8 @@ export default function Motoristas() {
       codigo: motorista.codigo,
       dataNascimento: motorista.dataNascimento,
       unidade: motorista.unidade,
+      funcao: motorista.funcao,
+      setor: motorista.setor,
       senha: '',
     });
     setIsDialogOpen(true);
@@ -109,6 +116,18 @@ export default function Motoristas() {
     toast.success('Motorista excluído com sucesso!');
   };
 
+  const handleImportCSV = (importedMotoristas: Motorista[]) => {
+    setMotoristas(prev => [...prev, ...importedMotoristas]);
+  };
+
+  const getFuncaoLabel = (funcao: FuncaoMotorista) => {
+    return funcao === 'ajudante_entrega' ? 'Ajudante' : 'Motorista';
+  };
+
+  const getSetorLabel = (setor: SetorMotorista) => {
+    return setor === 'interior' ? 'Interior' : 'Sede';
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -120,95 +139,130 @@ export default function Motoristas() {
           <p className="text-muted-foreground mt-1">Gerencie os motoristas cadastrados</p>
         </div>
         
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button className="btn-accent-gradient">
-              <Plus size={20} className="mr-2" />
-              Novo Motorista
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle className="font-heading text-xl">
-                {editingMotorista ? 'Editar Motorista' : 'Novo Motorista'}
-              </DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2 space-y-2">
-                  <Label htmlFor="nome">Nome Completo</Label>
-                  <Input
-                    id="nome"
-                    value={formData.nome}
-                    onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
-                    required
-                  />
+        <div className="flex gap-2">
+          <ImportarMotoristasCSV onImport={handleImportCSV} />
+          
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) resetForm();
+          }}>
+            <DialogTrigger asChild>
+              <Button className="btn-accent-gradient">
+                <Plus size={20} className="mr-2" />
+                Novo Motorista
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle className="font-heading text-xl">
+                  {editingMotorista ? 'Editar Motorista' : 'Novo Motorista'}
+                </DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2 space-y-2">
+                    <Label htmlFor="nome">Nome Completo</Label>
+                    <Input
+                      id="nome"
+                      value={formData.nome}
+                      onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="codigo">Código Promax</Label>
+                    <Input
+                      id="codigo"
+                      value={formData.codigo}
+                      onChange={(e) => setFormData(prev => ({ ...prev, codigo: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="dataNascimento">Data de Nascimento</Label>
+                    <Input
+                      id="dataNascimento"
+                      type="date"
+                      value={formData.dataNascimento}
+                      onChange={(e) => setFormData(prev => ({ ...prev, dataNascimento: e.target.value }))}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="funcao">Função</Label>
+                    <Select
+                      value={formData.funcao}
+                      onValueChange={(value: FuncaoMotorista) => setFormData(prev => ({ ...prev, funcao: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="motorista">Motorista</SelectItem>
+                        <SelectItem value="ajudante_entrega">Ajudante de Entrega</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="setor">Setor</Label>
+                    <Select
+                      value={formData.setor}
+                      onValueChange={(value: SetorMotorista) => setFormData(prev => ({ ...prev, setor: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sede">Sede</SelectItem>
+                        <SelectItem value="interior">Interior</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="col-span-2 space-y-2">
+                    <Label htmlFor="unidade">Unidade</Label>
+                    <Select
+                      value={formData.unidade}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, unidade: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {unidades.map(u => (
+                          <SelectItem key={u} value={u}>{u}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="col-span-2 space-y-2">
+                    <Label htmlFor="senha">Senha</Label>
+                    <Input
+                      id="senha"
+                      type="password"
+                      value={formData.senha}
+                      onChange={(e) => setFormData(prev => ({ ...prev, senha: e.target.value }))}
+                      required={!editingMotorista}
+                    />
+                  </div>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="codigo">Código do Motorista</Label>
-                  <Input
-                    id="codigo"
-                    value={formData.codigo}
-                    onChange={(e) => setFormData(prev => ({ ...prev, codigo: e.target.value }))}
-                    required
-                  />
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" className="btn-primary-gradient">
+                    {editingMotorista ? 'Salvar' : 'Cadastrar'}
+                  </Button>
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="dataNascimento">Data de Nascimento</Label>
-                  <Input
-                    id="dataNascimento"
-                    type="date"
-                    value={formData.dataNascimento}
-                    onChange={(e) => setFormData(prev => ({ ...prev, dataNascimento: e.target.value }))}
-                    required
-                  />
-                </div>
-                
-                <div className="col-span-2 space-y-2">
-                  <Label htmlFor="unidade">Unidade</Label>
-                  <Select
-                    value={formData.unidade}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, unidade: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {unidades.map(u => (
-                        <SelectItem key={u} value={u}>{u}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="col-span-2 space-y-2">
-                  <Label htmlFor="senha">Senha</Label>
-                  <Input
-                    id="senha"
-                    type="password"
-                    value={formData.senha}
-                    onChange={(e) => setFormData(prev => ({ ...prev, senha: e.target.value }))}
-                    required={!editingMotorista}
-                  />
-                </div>
-              </div>
-              
-              <div className="flex justify-end gap-3 pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit" className="btn-primary-gradient">
-                  {editingMotorista ? 'Salvar' : 'Cadastrar'}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Search */}
@@ -226,6 +280,8 @@ export default function Motoristas() {
             <tr className="table-header">
               <th className="text-left p-4 rounded-tl-lg">Nome</th>
               <th className="text-left p-4">Código</th>
+              <th className="text-left p-4">Função</th>
+              <th className="text-left p-4">Setor</th>
               <th className="text-left p-4">Unidade</th>
               <th className="text-right p-4 rounded-tr-lg">Ações</th>
             </tr>
@@ -241,6 +297,26 @@ export default function Motoristas() {
                   <span className="inline-flex items-center gap-1 text-muted-foreground">
                     <Hash size={14} />
                     {motorista.codigo}
+                  </span>
+                </td>
+                <td className="p-4">
+                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                    motorista.funcao === 'ajudante_entrega' 
+                      ? 'bg-accent/20 text-accent-foreground' 
+                      : 'bg-primary/20 text-primary'
+                  }`}>
+                    <Users size={12} />
+                    {getFuncaoLabel(motorista.funcao)}
+                  </span>
+                </td>
+                <td className="p-4">
+                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                    motorista.setor === 'interior' 
+                      ? 'bg-orange-500/20 text-orange-700 dark:text-orange-400' 
+                      : 'bg-green-500/20 text-green-700 dark:text-green-400'
+                  }`}>
+                    <Building size={12} />
+                    {getSetorLabel(motorista.setor)}
                   </span>
                 </td>
                 <td className="p-4">

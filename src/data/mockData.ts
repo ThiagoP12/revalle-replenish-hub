@@ -17,6 +17,8 @@ export const mockMotoristas: Motorista[] = [
     codigo: '60121',
     dataNascimento: '1985-03-15',
     unidade: 'Revalle Alagoinhas',
+    funcao: 'motorista',
+    setor: 'sede',
     email: 'carlos.silva@revalle.com',
     senha: '123456',
     createdAt: '2024-01-10'
@@ -27,6 +29,8 @@ export const mockMotoristas: Motorista[] = [
     codigo: '60122',
     dataNascimento: '1990-07-22',
     unidade: 'Revalle Juazeiro',
+    funcao: 'motorista',
+    setor: 'interior',
     email: 'jose.santos@revalle.com',
     senha: '123456',
     createdAt: '2024-01-12'
@@ -37,6 +41,8 @@ export const mockMotoristas: Motorista[] = [
     codigo: '60123',
     dataNascimento: '1988-11-08',
     unidade: 'Revalle Petrolina',
+    funcao: 'ajudante_entrega',
+    setor: 'sede',
     email: 'marcos.oliveira@revalle.com',
     senha: '123456',
     createdAt: '2024-01-15'
@@ -47,6 +53,8 @@ export const mockMotoristas: Motorista[] = [
     codigo: '60124',
     dataNascimento: '1992-05-30',
     unidade: 'Revalle Alagoinhas',
+    funcao: 'ajudante_entrega',
+    setor: 'interior',
     email: 'roberto.almeida@revalle.com',
     senha: '123456',
     createdAt: '2024-01-18'

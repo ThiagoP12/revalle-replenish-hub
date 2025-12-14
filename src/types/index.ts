@@ -8,12 +8,17 @@ export interface User {
   unidade: string;
 }
 
+export type FuncaoMotorista = 'motorista' | 'ajudante_entrega';
+export type SetorMotorista = 'interior' | 'sede';
+
 export interface Motorista {
   id: string;
   nome: string;
   codigo: string;
   dataNascimento: string;
   unidade: string;
+  funcao: FuncaoMotorista;
+  setor: SetorMotorista;
   whatsapp?: string;
   email?: string;
   senha?: string;

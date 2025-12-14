@@ -51,6 +51,8 @@ function dbToProtocolo(db: ProtocoloDB): Protocolo {
       codigo: db.motorista_codigo || '',
       dataNascimento: '',
       unidade: '',
+      funcao: 'motorista',
+      setor: 'sede',
       whatsapp: db.motorista_whatsapp || '',
       email: db.motorista_email || '',
       createdAt: ''
