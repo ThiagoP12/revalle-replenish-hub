@@ -1,12 +1,15 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMotoristaAuth } from '@/contexts/MotoristaAuthContext';
 import { useProtocolos } from '@/contexts/ProtocolosContext';
+import { useOfflineProtocolos } from '@/hooks/useOfflineProtocolos';
+import { compressImage } from '@/utils/imageCompression';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -20,16 +23,18 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Truck, LogOut, Plus, Trash2, CheckCircle, Camera, Package, X, AlertCircle, Check, CalendarIcon } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, Camera, Package, X, AlertCircle, Check, CalendarIcon, LogOut, FileText, PlusCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Protocolo, Produto, FotosProtocolo } from '@/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { ProdutoAutocomplete } from '@/components/ProdutoAutocomplete';
+import { MeusProtocolos } from '@/components/motorista/MeusProtocolos';
+import { MotoristaHeader } from '@/components/motorista/MotoristaHeader';
 
 interface ProdutoForm {
-  produto: string; // Unified field: "CÓD - NOME"
+  produto: string;
   unidade: string;
   quantidade: number;
   validade: Date | undefined;
@@ -47,7 +52,6 @@ interface TouchedFields {
   produtos: boolean[];
 }
 
-// Causas por tipo de reposição
 const causasPorTipo: Record<string, string[]> = {
   inversao: ['ERRO DE CARREGAMENTO', 'ERRO DE ENTREGA'],
   falta: ['FALTA DE PALLET FECHADO', 'FALTA DE PALLET MONTADO'],
@@ -70,6 +74,9 @@ export default function MotoristaPortal() {
   const navigate = useNavigate();
   const { motorista, logout, isAuthenticated } = useMotoristaAuth();
   const { addProtocolo } = useProtocolos();
+  const { isOnline, pendingCount, saveOffline, syncPending } = useOfflineProtocolos();
+
+  const [activeTab, setActiveTab] = useState('novo');
 
   // Form state
   const [mapa, setMapa] = useState('');
@@ -83,6 +90,7 @@ export default function MotoristaPortal() {
   const [observacao, setObservacao] = useState('');
   const [protocoloCriado, setProtocoloCriado] = useState(false);
   const [numeroProtocolo, setNumeroProtocolo] = useState('');
+  const [isCompressing, setIsCompressing] = useState(false);
 
   // Touched state for validation
   const [touched, setTouched] = useState<TouchedFields>({
@@ -106,11 +114,17 @@ export default function MotoristaPortal() {
   const fotoLoteProdutoRef = useRef<HTMLInputElement>(null);
   const fotoAvariaRef = useRef<HTMLInputElement>(null);
 
+  // Sincronizar protocolos pendentes quando online
+  useEffect(() => {
+    if (isOnline && pendingCount > 0) {
+      syncPending(addProtocolo);
+    }
+  }, [isOnline, pendingCount, syncPending, addProtocolo]);
+
   // Validation functions
   const isFieldValid = (field: keyof TouchedFields, value: string | null): boolean => {
     if (field === 'tipoReposicao') return !!value;
     if (field === 'causa') return !tipoReposicao || !!value;
-    // Photos are only required after tipoReposicao is selected
     if (field === 'fotoMotoristaPdv' || field === 'fotoLoteProduto') {
       return !tipoReposicao || !!value;
     }
@@ -118,10 +132,8 @@ export default function MotoristaPortal() {
     return typeof value === 'string' && value.trim().length > 0;
   };
 
-  // Control multiple products based on tipoReposicao
   const podeAdicionarMultiplos = tipoReposicao === 'avaria' || tipoReposicao === 'falta';
 
-  // Clear photos and causa when changing tipoReposicao
   const handleTipoReposicaoChange = (value: string) => {
     if (value !== tipoReposicao) {
       setFotoMotoristaPdv(null);
@@ -135,7 +147,6 @@ export default function MotoristaPortal() {
         fotoAvaria: false,
         causa: false
       }));
-      // Reset to single product if switching to inversao
       if (value === 'inversao' && produtos.length > 1) {
         setProdutos([produtos[0]]);
         setTouched(prev => ({ ...prev, produtos: [prev.produtos[0] || false] }));
@@ -187,27 +198,52 @@ export default function MotoristaPortal() {
     navigate('/motorista/login', { replace: true });
   };
 
-  const handleFotoUpload = (
+  // Compressão automática de imagens
+  const handleFotoUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
     setFoto: (value: string | null) => void
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > 10 * 1024 * 1024) {
       toast({
         title: 'Arquivo muito grande',
-        description: 'O tamanho máximo é 5MB',
+        description: 'O tamanho máximo é 10MB',
         variant: 'destructive'
       });
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setFoto(event.target?.result as string);
-    };
-    reader.readAsDataURL(file);
+    setIsCompressing(true);
+    
+    try {
+      // Comprime a imagem para máximo 1200px e qualidade 70%
+      const compressedImage = await compressImage(file, 1200, 0.7);
+      setFoto(compressedImage);
+      
+      // Calcular redução
+      const originalSize = file.size;
+      const compressedSize = Math.round((compressedImage.length * 3) / 4); // Base64 overhead
+      const reduction = Math.round((1 - compressedSize / originalSize) * 100);
+      
+      if (reduction > 0) {
+        toast({
+          title: 'Imagem otimizada',
+          description: `Tamanho reduzido em ${reduction}%`,
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao comprimir imagem:', error);
+      // Fallback: carregar sem compressão
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setFoto(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setIsCompressing(false);
+    }
   };
 
   const addProduto = () => {
@@ -254,7 +290,7 @@ export default function MotoristaPortal() {
     });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Validations
     if (!mapa.trim()) {
       toast({ title: 'Erro', description: 'Preencha o campo MAPA', variant: 'destructive' });
@@ -276,19 +312,6 @@ export default function MotoristaPortal() {
       toast({ title: 'Erro', description: 'Selecione a causa', variant: 'destructive' });
       return;
     }
-    // Fotos opcionais durante período de teste
-    // if (!fotoMotoristaPdv) {
-    //   toast({ title: 'Erro', description: 'Adicione a foto do motorista no PDV', variant: 'destructive' });
-    //   return;
-    // }
-    // if (!fotoLoteProduto) {
-    //   toast({ title: 'Erro', description: 'Adicione a foto do lote do produto', variant: 'destructive' });
-    //   return;
-    // }
-    // if (tipoReposicao === 'avaria' && !fotoAvaria) {
-    //   toast({ title: 'Erro', description: 'Adicione a foto da avaria', variant: 'destructive' });
-    //   return;
-    // }
 
     const validProdutos = produtos.filter(p => p.produto.trim());
     if (validProdutos.length === 0) {
@@ -305,7 +328,6 @@ export default function MotoristaPortal() {
       fotoAvaria: fotoAvaria || undefined
     };
 
-    // Convert produtos to the expected format - extract codigo and nome from unified field
     const produtosFormatados = validProdutos.map(p => {
       const parts = p.produto.split(' - ');
       const codigo = parts[0] || '';
@@ -342,40 +364,44 @@ export default function MotoristaPortal() {
       createdAt: now.toISOString()
     };
 
-    addProtocolo(novoProtocolo)
-      .then(() => {
-        setNumeroProtocolo(numero);
-        setProtocoloCriado(true);
-        toast({
-          title: 'Protocolo criado!',
-          description: `Protocolo ${numero} criado com sucesso`
-        });
-      })
-      .catch((error) => {
-        console.error('Erro ao criar protocolo:', error);
-        toast({
-          title: 'Erro',
-          description: 'Não foi possível salvar o protocolo. Tente novamente.',
-          variant: 'destructive'
-        });
+    // Se offline, salvar localmente
+    if (!isOnline) {
+      saveOffline(novoProtocolo);
+      setNumeroProtocolo(numero);
+      setProtocoloCriado(true);
+      return;
+    }
+
+    try {
+      await addProtocolo(novoProtocolo);
+      setNumeroProtocolo(numero);
+      setProtocoloCriado(true);
+      toast({
+        title: 'Protocolo criado!',
+        description: `Protocolo ${numero} criado com sucesso`
       });
+    } catch (error) {
+      console.error('Erro ao criar protocolo:', error);
+      // Salvar offline se falhar
+      saveOffline(novoProtocolo);
+      setNumeroProtocolo(numero);
+      setProtocoloCriado(true);
+    }
   };
 
-  // Photo upload card component for mobile with validation
+  // Photo upload card component
   const PhotoUploadCard = ({
     label,
     photo,
     setPhoto,
     inputRef,
     field,
-    required = false // Fotos opcionais durante teste
   }: {
     label: string;
     photo: string | null;
     setPhoto: (value: string | null) => void;
     inputRef: React.RefObject<HTMLInputElement>;
     field: 'fotoMotoristaPdv' | 'fotoLoteProduto' | 'fotoAvaria';
-    required?: boolean;
   }) => {
     const hasPhoto = !!photo;
     
@@ -423,13 +449,14 @@ export default function MotoristaPortal() {
             onClick={() => {
               inputRef.current?.click();
             }}
-            className="w-full aspect-[4/3] border-2 border-dashed rounded-lg flex flex-col items-center justify-center gap-3 transition-colors border-primary/40 bg-primary/5 hover:bg-primary/10 active:bg-primary/15"
+            disabled={isCompressing}
+            className="w-full aspect-[4/3] border-2 border-dashed rounded-lg flex flex-col items-center justify-center gap-3 transition-colors border-primary/40 bg-primary/5 hover:bg-primary/10 active:bg-primary/15 disabled:opacity-50"
           >
             <div className="w-14 h-14 rounded-full flex items-center justify-center bg-primary/10">
               <Camera size={28} className="text-primary" />
             </div>
             <span className="text-sm font-medium text-primary">
-              Tirar Foto
+              {isCompressing ? 'Processando...' : 'Tirar Foto'}
             </span>
           </button>
         )}
@@ -445,9 +472,13 @@ export default function MotoristaPortal() {
             <div className="w-20 h-20 mx-auto bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-4">
               <CheckCircle className="w-10 h-10 text-green-600 dark:text-green-400" />
             </div>
-            <h2 className="text-2xl font-bold text-foreground mb-2">Protocolo Criado!</h2>
+            <h2 className="text-2xl font-bold text-foreground mb-2">
+              {isOnline ? 'Protocolo Criado!' : 'Salvo Localmente!'}
+            </h2>
             <p className="text-muted-foreground mb-4">
-              Seu protocolo foi enviado com sucesso
+              {isOnline 
+                ? 'Seu protocolo foi enviado com sucesso' 
+                : 'O protocolo será enviado quando você tiver conexão'}
             </p>
             <div className="bg-muted/50 rounded-lg p-4 mb-6">
               <p className="text-sm text-muted-foreground">Número do protocolo</p>
@@ -471,376 +502,389 @@ export default function MotoristaPortal() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-secondary/10 safe-area-inset">
-      {/* Header - More compact for mobile */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-3 py-3">
-        <div className="max-w-lg mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
-              <Truck className="w-5 h-5 text-primary" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-base font-bold text-foreground truncate">{motorista.nome}</h1>
-              <p className="text-xs text-muted-foreground">Cód: {motorista.codigo}</p>
-            </div>
-          </div>
-          <Button variant="outline" size="sm" onClick={handleLogout} className="shrink-0 h-9 px-3">
-            <LogOut className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Sair</span>
-          </Button>
-        </div>
-      </div>
+      {/* Header com nome, código e unidade */}
+      <MotoristaHeader 
+        motorista={motorista}
+        isOnline={isOnline}
+        pendingCount={pendingCount}
+        onLogout={handleLogout}
+      />
 
-      {/* Main Content */}
-      <div className="px-3 py-4 pb-24 max-w-lg mx-auto">
-        <Card className="shadow-lg border-border/50">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Package className="h-5 w-5 text-primary" />
-              Abrir Protocolo
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            {/* General Info - Single column on mobile */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="mapa" className="text-sm font-medium">MAPA *</Label>
-                  {touched.mapa && mapa.trim() && <Check size={14} className="text-green-500" />}
-                </div>
-                <Input
-                  id="mapa"
-                  value={mapa}
-                  onChange={(e) => setMapa(e.target.value)}
-                  onBlur={() => handleBlur('mapa')}
-                  placeholder="Ex: 16431"
-                  className={getInputClassName('mapa', mapa)}
-                  inputMode="numeric"
-                />
-                {touched.mapa && !mapa.trim() && (
-                  <p className="text-xs text-red-500 flex items-center gap-1">
-                    <AlertCircle size={12} />
-                    Campo obrigatório
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="codigoPdv" className="text-sm font-medium">Código PDV *</Label>
-                  {touched.codigoPdv && codigoPdv.trim() && <Check size={14} className="text-green-500" />}
-                </div>
-                <Input
-                  id="codigoPdv"
-                  value={codigoPdv}
-                  onChange={(e) => setCodigoPdv(e.target.value)}
-                  onBlur={() => handleBlur('codigoPdv')}
-                  placeholder="Ex: PDV001"
-                  className={getInputClassName('codigoPdv', codigoPdv)}
-                />
-                {touched.codigoPdv && !codigoPdv.trim() && (
-                  <p className="text-xs text-red-500 flex items-center gap-1">
-                    <AlertCircle size={12} />
-                    Campo obrigatório
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="notaFiscal" className="text-sm font-medium">Nota Fiscal *</Label>
-                  {touched.notaFiscal && notaFiscal.trim() && <Check size={14} className="text-green-500" />}
-                </div>
-                <Input
-                  id="notaFiscal"
-                  value={notaFiscal}
-                  onChange={(e) => setNotaFiscal(e.target.value)}
-                  onBlur={() => handleBlur('notaFiscal')}
-                  placeholder="Ex: 243631"
-                  className={getInputClassName('notaFiscal', notaFiscal)}
-                  inputMode="numeric"
-                />
-                {touched.notaFiscal && !notaFiscal.trim() && (
-                  <p className="text-xs text-red-500 flex items-center gap-1">
-                    <AlertCircle size={12} />
-                    Campo obrigatório
-                  </p>
-                )}
-              </div>
-            </div>
+      {/* Tabs */}
+      <div className="px-3 pt-4 pb-2 max-w-lg mx-auto">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 h-12">
+            <TabsTrigger value="novo" className="text-sm gap-2">
+              <PlusCircle className="w-4 h-4" />
+              Novo Protocolo
+            </TabsTrigger>
+            <TabsTrigger value="meus" className="text-sm gap-2">
+              <FileText className="w-4 h-4" />
+              Meus Protocolos
+            </TabsTrigger>
+          </TabsList>
 
-            {/* Tipo Reposição e Causa - Grid 2 colunas */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label className="text-sm font-medium">Tipo *</Label>
-                  {touched.tipoReposicao && tipoReposicao && <Check size={14} className="text-green-500" />}
-                </div>
-                <Select 
-                  value={tipoReposicao} 
-                  onValueChange={handleTipoReposicaoChange}
-                >
-                  <SelectTrigger className={cn(
-                    "h-12 text-base",
-                    touched.tipoReposicao && tipoReposicao && 'border-green-500 focus:ring-green-500',
-                    touched.tipoReposicao && !tipoReposicao && 'border-red-500 focus:ring-red-500'
-                  )}>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="falta">Falta</SelectItem>
-                    <SelectItem value="inversao">Inversão</SelectItem>
-                    <SelectItem value="avaria">Avaria</SelectItem>
-                  </SelectContent>
-                </Select>
-                {touched.tipoReposicao && !tipoReposicao && (
-                  <p className="text-xs text-red-500 flex items-center gap-1">
-                    <AlertCircle size={12} />
-                    Selecione
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label className="text-sm font-medium">Causa *</Label>
-                  {touched.causa && causa && <Check size={14} className="text-green-500" />}
-                </div>
-                <Select 
-                  value={causa} 
-                  onValueChange={(value) => {
-                    setCausa(value);
-                    handleBlur('causa');
-                  }}
-                  disabled={!tipoReposicao}
-                >
-                  <SelectTrigger className={cn(
-                    "h-12 text-base",
-                    touched.causa && causa && 'border-green-500 focus:ring-green-500',
-                    touched.causa && !causa && tipoReposicao && 'border-red-500 focus:ring-red-500'
-                  )}>
-                    <SelectValue placeholder={tipoReposicao ? "Selecione" : "Escolha o tipo"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tipoReposicao && causasPorTipo[tipoReposicao]?.map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {touched.causa && !causa && tipoReposicao && (
-                  <p className="text-xs text-red-500 flex items-center gap-1">
-                    <AlertCircle size={12} />
-                    Selecione
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Products Section - Single column for mobile */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="flex items-center gap-2 text-sm font-medium">
-                  <Package className="h-4 w-4 text-primary" />
-                  Produtos
-                  {tipoReposicao === 'inversao' && (
-                    <span className="text-xs text-muted-foreground font-normal">(apenas 1)</span>
-                  )}
-                </Label>
-                {podeAdicionarMultiplos && (
-                  <Button type="button" variant="outline" size="sm" onClick={addProduto} className="h-9">
-                    <Plus className="mr-1 h-4 w-4" />
-                    Adicionar
-                  </Button>
-                )}
-              </div>
-              
-              {produtos.map((produto, index) => {
-                const isTouched = touched.produtos[index];
-                const isValid = isProdutoValid(produto);
-                
-                return (
-                  <div 
-                    key={index} 
-                    className={cn(
-                      "p-4 bg-muted/30 border-2 rounded-xl space-y-3 transition-colors",
-                      isTouched && isValid && 'border-green-500',
-                      isTouched && !isValid && 'border-red-500',
-                      !isTouched && 'border-border'
+          {/* Tab: Novo Protocolo */}
+          <TabsContent value="novo" className="mt-4 pb-24">
+            <Card className="shadow-lg border-border/50">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Package className="h-5 w-5 text-primary" />
+                  Abrir Protocolo
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                {/* General Info */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="mapa" className="text-sm font-medium">MAPA *</Label>
+                      {touched.mapa && mapa.trim() && <Check size={14} className="text-green-500" />}
+                    </div>
+                    <Input
+                      id="mapa"
+                      value={mapa}
+                      onChange={(e) => setMapa(e.target.value)}
+                      onBlur={() => handleBlur('mapa')}
+                      placeholder="Ex: 16431"
+                      className={getInputClassName('mapa', mapa)}
+                      inputMode="numeric"
+                    />
+                    {touched.mapa && !mapa.trim() && (
+                      <p className="text-xs text-red-500 flex items-center gap-1">
+                        <AlertCircle size={12} />
+                        Campo obrigatório
+                      </p>
                     )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-foreground">Produto {index + 1}</span>
-                        {isTouched && isValid && <Check size={14} className="text-green-500" />}
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="codigoPdv" className="text-sm font-medium">Código PDV *</Label>
+                      {touched.codigoPdv && codigoPdv.trim() && <Check size={14} className="text-green-500" />}
+                    </div>
+                    <Input
+                      id="codigoPdv"
+                      value={codigoPdv}
+                      onChange={(e) => setCodigoPdv(e.target.value)}
+                      onBlur={() => handleBlur('codigoPdv')}
+                      placeholder="Ex: PDV001"
+                      className={getInputClassName('codigoPdv', codigoPdv)}
+                    />
+                    {touched.codigoPdv && !codigoPdv.trim() && (
+                      <p className="text-xs text-red-500 flex items-center gap-1">
+                        <AlertCircle size={12} />
+                        Campo obrigatório
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="notaFiscal" className="text-sm font-medium">Nota Fiscal *</Label>
+                      {touched.notaFiscal && notaFiscal.trim() && <Check size={14} className="text-green-500" />}
+                    </div>
+                    <Input
+                      id="notaFiscal"
+                      value={notaFiscal}
+                      onChange={(e) => setNotaFiscal(e.target.value)}
+                      onBlur={() => handleBlur('notaFiscal')}
+                      placeholder="Ex: 243631"
+                      className={getInputClassName('notaFiscal', notaFiscal)}
+                      inputMode="numeric"
+                    />
+                    {touched.notaFiscal && !notaFiscal.trim() && (
+                      <p className="text-xs text-red-500 flex items-center gap-1">
+                        <AlertCircle size={12} />
+                        Campo obrigatório
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Tipo Reposição e Causa */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm font-medium">Tipo *</Label>
+                      {touched.tipoReposicao && tipoReposicao && <Check size={14} className="text-green-500" />}
+                    </div>
+                    <Select 
+                      value={tipoReposicao} 
+                      onValueChange={handleTipoReposicaoChange}
+                    >
+                      <SelectTrigger className={cn(
+                        "h-12 text-base",
+                        touched.tipoReposicao && tipoReposicao && 'border-green-500 focus:ring-green-500',
+                        touched.tipoReposicao && !tipoReposicao && 'border-red-500 focus:ring-red-500'
+                      )}>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="falta">Falta</SelectItem>
+                        <SelectItem value="inversao">Inversão</SelectItem>
+                        <SelectItem value="avaria">Avaria</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {touched.tipoReposicao && !tipoReposicao && (
+                      <p className="text-xs text-red-500 flex items-center gap-1">
+                        <AlertCircle size={12} />
+                        Selecione
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm font-medium">Causa *</Label>
+                      {touched.causa && causa && <Check size={14} className="text-green-500" />}
+                    </div>
+                    <Select 
+                      value={causa} 
+                      onValueChange={(value) => {
+                        setCausa(value);
+                        handleBlur('causa');
+                      }}
+                      disabled={!tipoReposicao}
+                    >
+                      <SelectTrigger className={cn(
+                        "h-12 text-base",
+                        touched.causa && causa && 'border-green-500 focus:ring-green-500',
+                        touched.causa && !causa && tipoReposicao && 'border-red-500 focus:ring-red-500'
+                      )}>
+                        <SelectValue placeholder={tipoReposicao ? "Selecione" : "Escolha o tipo"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {tipoReposicao && causasPorTipo[tipoReposicao]?.map((c) => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {touched.causa && !causa && tipoReposicao && (
+                      <p className="text-xs text-red-500 flex items-center gap-1">
+                        <AlertCircle size={12} />
+                        Selecione
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Products Section */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2 text-sm font-medium">
+                      <Package className="h-4 w-4 text-primary" />
+                      Produtos
+                      {tipoReposicao === 'inversao' && (
+                        <span className="text-xs text-muted-foreground font-normal">(apenas 1)</span>
+                      )}
+                    </Label>
+                    {podeAdicionarMultiplos && (
+                      <Button type="button" variant="outline" size="sm" onClick={addProduto} className="h-9">
+                        <Plus className="mr-1 h-4 w-4" />
+                        Adicionar
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {produtos.map((produto, index) => {
+                    const isTouched = touched.produtos[index];
+                    const isValid = isProdutoValid(produto);
+                    
+                    return (
+                      <div 
+                        key={index} 
+                        className={cn(
+                          "p-4 bg-muted/30 border-2 rounded-xl space-y-3 transition-colors",
+                          isTouched && isValid && 'border-green-500',
+                          isTouched && !isValid && 'border-red-500',
+                          !isTouched && 'border-border'
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-foreground">Produto {index + 1}</span>
+                            {isTouched && isValid && <Check size={14} className="text-green-500" />}
+                          </div>
+                          {produtos.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeProduto(index)}
+                              className="h-9 w-9 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-5 w-5" />
+                            </Button>
+                          )}
+                        </div>
+                        <div className="space-y-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-medium text-muted-foreground">Produto *</Label>
+                            <ProdutoAutocomplete
+                              value={produto.produto}
+                              onChange={(value, embalagem) => {
+                                updateProduto(index, 'produto', value);
+                                if (embalagem) {
+                                  updateProduto(index, 'unidade', embalagem);
+                                }
+                              }}
+                              onBlur={() => handleProdutoBlur(index)}
+                              className={cn(
+                                isTouched && produto.produto.trim() && 'border-green-500',
+                                isTouched && !produto.produto.trim() && 'border-red-500'
+                              )}
+                            />
+                            {isTouched && !produto.produto.trim() && (
+                              <p className="text-xs text-red-500 flex items-center gap-1">
+                                <AlertCircle size={12} />
+                                Produto obrigatório
+                              </p>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-[1fr_70px_1fr] gap-2">
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-medium text-muted-foreground">Qtd</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                value={produto.quantidade}
+                                onChange={(e) => updateProduto(index, 'quantidade', parseInt(e.target.value) || 1)}
+                                className="h-11 text-base"
+                                inputMode="numeric"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-medium text-muted-foreground">Und</Label>
+                              <Select
+                                value={produto.unidade}
+                                onValueChange={(value) => updateProduto(index, 'unidade', value)}
+                              >
+                                <SelectTrigger className="h-11 text-xs px-2">
+                                  <SelectValue placeholder="-" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="UND">UND</SelectItem>
+                                  <SelectItem value="CX">CX</SelectItem>
+                                  <SelectItem value="PCT">PCT</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-medium text-muted-foreground">Validade</Label>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    className={cn(
+                                      "h-11 w-full justify-start text-left font-normal",
+                                      !produto.validade && "text-muted-foreground"
+                                    )}
+                                  >
+                                    {produto.validade ? (
+                                      format(produto.validade, "dd/MM/yy")
+                                    ) : (
+                                      <CalendarIcon className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={produto.validade}
+                                    onSelect={(date) => updateProduto(index, 'validade', date)}
+                                    locale={ptBR}
+                                    className="pointer-events-auto"
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      {produtos.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeProduto(index)}
-                          className="h-9 w-9 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </Button>
+                    );
+                  })}
+                </div>
+
+                {/* Photos Section */}
+                {tipoReposicao ? (
+                  <div className="space-y-3">
+                    <Label className="flex items-center gap-2 text-sm font-medium">
+                      <Camera className="h-4 w-4 text-primary" />
+                      Fotos (opcional)
+                    </Label>
+                    
+                    <div className="space-y-3">
+                      <PhotoUploadCard
+                        label="Motorista no PDV"
+                        photo={fotoMotoristaPdv}
+                        setPhoto={setFotoMotoristaPdv}
+                        inputRef={fotoMotoristaPdvRef}
+                        field="fotoMotoristaPdv"
+                      />
+                      <PhotoUploadCard
+                        label="Lote do Produto"
+                        photo={fotoLoteProduto}
+                        setPhoto={setFotoLoteProduto}
+                        inputRef={fotoLoteProdutoRef}
+                        field="fotoLoteProduto"
+                      />
+                      {tipoReposicao === 'avaria' && (
+                        <PhotoUploadCard
+                          label="Foto da Avaria"
+                          photo={fotoAvaria}
+                          setPhoto={setFotoAvaria}
+                          inputRef={fotoAvariaRef}
+                          field="fotoAvaria"
+                        />
                       )}
                     </div>
-                    <div className="space-y-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-medium text-muted-foreground">Produto *</Label>
-                        <ProdutoAutocomplete
-                          value={produto.produto}
-                          onChange={(value, embalagem) => {
-                            updateProduto(index, 'produto', value);
-                            if (embalagem) {
-                              updateProduto(index, 'unidade', embalagem);
-                            }
-                          }}
-                          onBlur={() => handleProdutoBlur(index)}
-                          className={cn(
-                            isTouched && produto.produto.trim() && 'border-green-500',
-                            isTouched && !produto.produto.trim() && 'border-red-500'
-                          )}
-                        />
-                        {isTouched && !produto.produto.trim() && (
-                          <p className="text-xs text-red-500 flex items-center gap-1">
-                            <AlertCircle size={12} />
-                            Produto obrigatório
-                          </p>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-[1fr_70px_1fr] gap-2">
-                        <div className="space-y-1.5">
-                          <Label className="text-xs font-medium text-muted-foreground">Qtd</Label>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={produto.quantidade}
-                            onChange={(e) => updateProduto(index, 'quantidade', parseInt(e.target.value) || 1)}
-                            className="h-11 text-base"
-                            inputMode="numeric"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs font-medium text-muted-foreground">Und</Label>
-                          <Select
-                            value={produto.unidade}
-                            onValueChange={(value) => updateProduto(index, 'unidade', value)}
-                          >
-                            <SelectTrigger className="h-11 text-xs px-2">
-                              <SelectValue placeholder="-" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="UND">UND</SelectItem>
-                              <SelectItem value="CX">CX</SelectItem>
-                              <SelectItem value="PCT">PCT</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs font-medium text-muted-foreground">Validade</Label>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "h-11 w-full justify-start text-left font-normal",
-                                  !produto.validade && "text-muted-foreground"
-                                )}
-                              >
-                                {produto.validade ? (
-                                  format(produto.validade, "dd/MM/yy")
-                                ) : (
-                                  <CalendarIcon className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={produto.validade}
-                                onSelect={(date) => updateProduto(index, 'validade', date)}
-                                locale={ptBR}
-                                className="pointer-events-auto"
-                              />
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-                      </div>
-                    </div>
                   </div>
-                );
-              })}
-            </div>
+                ) : (
+                  <div className="p-4 bg-muted/30 rounded-xl border border-dashed border-border text-center">
+                    <Camera className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      Selecione o tipo de reposição para ver as fotos necessárias
+                    </p>
+                  </div>
+                )}
 
-            {/* Photos Section - After Products */}
-            {tipoReposicao ? (
-              <div className="space-y-3">
-                <Label className="flex items-center gap-2 text-sm font-medium">
-                  <Camera className="h-4 w-4 text-primary" />
-                  Fotos (opcional)
-                </Label>
-                
-                <div className="space-y-3">
-                  <PhotoUploadCard
-                    label="Motorista no PDV"
-                    photo={fotoMotoristaPdv}
-                    setPhoto={setFotoMotoristaPdv}
-                    inputRef={fotoMotoristaPdvRef}
-                    field="fotoMotoristaPdv"
+                {/* Observation */}
+                <div className="space-y-2">
+                  <Label htmlFor="observacao" className="text-sm font-medium">Observação (opcional)</Label>
+                  <Textarea
+                    id="observacao"
+                    value={observacao}
+                    onChange={(e) => setObservacao(e.target.value)}
+                    placeholder="Adicione observações relevantes..."
+                    rows={3}
+                    className="text-base resize-none"
                   />
-                  <PhotoUploadCard
-                    label="Lote do Produto"
-                    photo={fotoLoteProduto}
-                    setPhoto={setFotoLoteProduto}
-                    inputRef={fotoLoteProdutoRef}
-                    field="fotoLoteProduto"
-                  />
-                  {tipoReposicao === 'avaria' && (
-                    <PhotoUploadCard
-                      label="Foto da Avaria"
-                      photo={fotoAvaria}
-                      setPhoto={setFotoAvaria}
-                      inputRef={fotoAvariaRef}
-                      field="fotoAvaria"
-                    />
-                  )}
                 </div>
-              </div>
-            ) : (
-              <div className="p-4 bg-muted/30 rounded-xl border border-dashed border-border text-center">
-                <Camera className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  Selecione o tipo de reposição para ver as fotos necessárias
-                </p>
-              </div>
-            )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            {/* Observation */}
-            <div className="space-y-2">
-              <Label htmlFor="observacao" className="text-sm font-medium">Observação (opcional)</Label>
-              <Textarea
-                id="observacao"
-                value={observacao}
-                onChange={(e) => setObservacao(e.target.value)}
-                placeholder="Adicione observações relevantes..."
-                rows={3}
-                className="text-base resize-none"
-              />
-            </div>
-          </CardContent>
-        </Card>
+          {/* Tab: Meus Protocolos */}
+          <TabsContent value="meus" className="mt-4 pb-8">
+            <MeusProtocolos motorista={motorista} />
+          </TabsContent>
+        </Tabs>
       </div>
 
-      {/* Sticky Submit Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-3 bg-background/95 backdrop-blur-sm border-t border-border safe-area-bottom">
-        <div className="max-w-lg mx-auto">
-          <Button 
-            onClick={handleSubmit} 
-            className="w-full h-14 text-base font-semibold shadow-lg"
-          >
-            <CheckCircle className="mr-2 h-5 w-5" />
-            Enviar Protocolo
-          </Button>
+      {/* Sticky Submit Button - Only show on new protocol tab */}
+      {activeTab === 'novo' && (
+        <div className="fixed bottom-0 left-0 right-0 p-3 bg-background/95 backdrop-blur-sm border-t border-border safe-area-bottom">
+          <div className="max-w-lg mx-auto">
+            <Button 
+              onClick={handleSubmit} 
+              className="w-full h-14 text-base font-semibold shadow-lg"
+              disabled={isCompressing}
+            >
+              <CheckCircle className="mr-2 h-5 w-5" />
+              {isCompressing ? 'Processando imagem...' : 'Enviar Protocolo'}
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
