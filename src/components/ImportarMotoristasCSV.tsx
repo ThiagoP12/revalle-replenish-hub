@@ -12,12 +12,13 @@ import {
 import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Motorista, FuncaoMotorista, SetorMotorista } from '@/types';
+import * as XLSX from 'xlsx';
 
 interface ImportarMotoristasCSVProps {
   onImport: (motoristas: Motorista[]) => void;
 }
 
-interface CSVRow {
+interface DataRow {
   Nome: string;
   Função: string;
   Setor: string;
@@ -28,26 +29,55 @@ interface CSVRow {
 
 export function ImportarMotoristasCSV({ onImport }: ImportarMotoristasCSVProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [previewData, setPreviewData] = useState<CSVRow[]>([]);
+  const [previewData, setPreviewData] = useState<DataRow[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Normaliza nome de coluna para encontrar correspondência
   const normalizeHeader = (header: string): string => {
-    const h = header.toLowerCase().trim()
+    const h = String(header).toLowerCase().trim()
       .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // Remove acentos
     
     if (h.includes('nome') || h === 'name') return 'Nome';
-    if (h.includes('funcao') || h.includes('função') || h.includes('cargo')) return 'Função';
+    if (h.includes('funcao') || h.includes('cargo')) return 'Função';
     if (h.includes('setor') || h.includes('area')) return 'Setor';
-    if (h.includes('codigo') || h.includes('código') || h.includes('promax') || h.includes('cod')) return 'Código promax';
+    if (h.includes('codigo') || h.includes('promax') || h.includes('cod')) return 'Código promax';
     if (h.includes('unidade') || h.includes('filial') || h.includes('loja')) return 'UNIDADE';
     if (h.includes('senha') || h.includes('password')) return 'Senha';
     
     return header;
   };
 
-  const parseCSV = (text: string): CSVRow[] => {
+  const parseXLSX = (data: ArrayBuffer): DataRow[] => {
+    try {
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      
+      // Converte para JSON com headers
+      const jsonData = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: '' });
+      
+      console.log('XLSX Debug - Raw data:', jsonData.slice(0, 3));
+      
+      // Normaliza os headers
+      const results = jsonData.map((row) => {
+        const normalizedRow: Record<string, string> = {};
+        Object.entries(row).forEach(([key, value]) => {
+          const normalizedKey = normalizeHeader(key);
+          normalizedRow[normalizedKey] = String(value ?? '').trim();
+        });
+        return normalizedRow as unknown as DataRow;
+      }).filter(row => row.Nome && row.Nome.trim() !== '');
+      
+      console.log('XLSX Debug - Parsed rows:', results.length);
+      return results;
+    } catch (error) {
+      console.error('Error parsing XLSX:', error);
+      return [];
+    }
+  };
+
+  const parseCSV = (text: string): DataRow[] => {
     const lines = text.trim().split(/\r?\n/).filter(line => line.trim() !== '');
     if (lines.length < 2) return [];
 
@@ -61,17 +91,10 @@ export function ImportarMotoristasCSV({ onImport }: ImportarMotoristasCSVProps) 
     if (tabCount > commaCount && tabCount > semicolonCount) separator = '\t';
     else if (semicolonCount > commaCount) separator = ';';
 
-    console.log('CSV Debug - Separator:', separator);
-    console.log('CSV Debug - First line:', firstLine);
-    console.log('CSV Debug - Total lines:', lines.length);
-
     const rawHeaders = firstLine.split(separator).map(h => h.trim().replace(/"/g, ''));
     const headers = rawHeaders.map(normalizeHeader);
     
-    console.log('CSV Debug - Raw headers:', rawHeaders);
-    console.log('CSV Debug - Normalized headers:', headers);
-    
-    const results = lines.slice(1).map((line, lineIndex) => {
+    const results = lines.slice(1).map((line) => {
       if (!line.trim()) return null;
       
       const values = line.split(separator).map(v => v.trim().replace(/"/g, ''));
@@ -80,57 +103,68 @@ export function ImportarMotoristasCSV({ onImport }: ImportarMotoristasCSVProps) 
         row[header] = values[index] || '';
       });
       
-      console.log(`CSV Debug - Line ${lineIndex + 2}:`, row);
-      return row as unknown as CSVRow;
-    }).filter((row): row is CSVRow => row !== null && row.Nome && row.Nome.trim() !== '');
+      return row as unknown as DataRow;
+    }).filter((row): row is DataRow => row !== null && row.Nome && row.Nome.trim() !== '');
     
-    console.log('CSV Debug - Parsed rows:', results.length);
     return results;
   };
 
   const mapFuncao = (funcao: string): FuncaoMotorista => {
-    const normalized = funcao.toLowerCase().trim();
-    if (normalized.includes('ajudante') || normalized.includes('entrega')) {
+    const normalized = (funcao || '').toLowerCase().trim();
+    if (normalized.includes('ajudante') || (normalized.includes('entrega') && !normalized.includes('motorista'))) {
       return 'ajudante_entrega';
     }
     return 'motorista';
   };
 
   const mapSetor = (setor: string): SetorMotorista => {
-    const normalized = setor.toLowerCase().trim();
+    const normalized = (setor || '').toLowerCase().trim();
     if (normalized.includes('interior')) {
       return 'interior';
     }
     return 'sede';
   };
 
+  const processData = (data: DataRow[]) => {
+    const validationErrors: string[] = [];
+    
+    if (data.length === 0) {
+      validationErrors.push('Nenhum registro encontrado. Verifique se o arquivo contém a coluna "Nome".');
+      validationErrors.push('Colunas aceitas: Nome, Função/Cargo, Setor, Código promax, Unidade, Senha');
+    }
+    
+    data.forEach((row, index) => {
+      if (!row.Nome) validationErrors.push(`Linha ${index + 2}: Nome é obrigatório`);
+      if (!row['Código promax']) validationErrors.push(`Linha ${index + 2}: Código promax é obrigatório`);
+    });
+
+    setErrors(validationErrors);
+    setPreviewData(data);
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      console.log('CSV Debug - Raw text preview:', text.substring(0, 500));
-      
-      const data = parseCSV(text);
-      
-      const validationErrors: string[] = [];
-      
-      if (data.length === 0) {
-        validationErrors.push('Nenhum registro encontrado. Verifique se o CSV contém a coluna "Nome" (ou similar).');
-        validationErrors.push('Colunas aceitas: Nome, Função/Cargo, Setor, Código/Cod promax, Unidade/Filial, Senha');
-      }
-      
-      data.forEach((row, index) => {
-        if (!row.Nome) validationErrors.push(`Linha ${index + 2}: Nome é obrigatório`);
-        if (!row['Código promax']) validationErrors.push(`Linha ${index + 2}: Código promax é obrigatório`);
-      });
-
-      setErrors(validationErrors);
-      setPreviewData(data);
-    };
-    reader.readAsText(file, 'UTF-8');
+    const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+    
+    if (isExcel) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const data = event.target?.result as ArrayBuffer;
+        const parsedData = parseXLSX(data);
+        processData(parsedData);
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target?.result as string;
+        const parsedData = parseCSV(text);
+        processData(parsedData);
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
   };
 
   const handleImport = () => {
@@ -142,12 +176,12 @@ export function ImportarMotoristasCSV({ onImport }: ImportarMotoristasCSVProps) 
     const motoristas: Motorista[] = previewData.map((row, index) => ({
       id: String(Date.now() + index),
       nome: row.Nome.trim(),
-      codigo: row['Código promax'].trim(),
+      codigo: String(row['Código promax']).trim(),
       dataNascimento: '',
       unidade: row.UNIDADE?.trim() || 'Revalle Juazeiro',
       funcao: mapFuncao(row.Função || ''),
       setor: mapSetor(row.Setor || ''),
-      senha: row.Senha?.trim() || row['Código promax'].trim(),
+      senha: row.Senha?.trim() || String(row['Código promax']).trim(),
       createdAt: new Date().toISOString(),
     }));
 
@@ -175,24 +209,24 @@ export function ImportarMotoristasCSV({ onImport }: ImportarMotoristasCSVProps) 
       <DialogTrigger asChild>
         <Button variant="outline" className="gap-2">
           <Upload size={18} />
-          Importar CSV
+          Importar Planilha
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="font-heading text-xl flex items-center gap-2">
             <FileSpreadsheet className="text-primary" size={24} />
-            Importar Motoristas via CSV
+            Importar Motoristas
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
           <div className="space-y-2">
-            <Label>Selecione o arquivo CSV</Label>
+            <Label>Selecione o arquivo (CSV ou Excel)</Label>
             <Input
               ref={fileInputRef}
               type="file"
-              accept=".csv,.txt"
+              accept=".csv,.txt,.xlsx,.xls"
               onChange={handleFileChange}
               className="cursor-pointer"
             />
