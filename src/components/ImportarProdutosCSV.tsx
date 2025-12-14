@@ -12,7 +12,7 @@ interface ImportarProdutosCSVProps {
 }
 
 const HEADER_VARIATIONS: Record<string, string[]> = {
-  cod: ['cod', 'codigo', 'código', 'code', 'sku', 'id', 'codproduto', 'coditem', 'codigoproduto', 'codigoitem'],
+  cod: ['cod', 'icod', 'codigo', 'código', 'code', 'sku', 'id', 'codproduto', 'coditem', 'codigoproduto', 'codigoitem'],
   produto: ['produto', 'nome', 'name', 'descrição', 'descricao', 'description', 'item', 'nomeproduto', 'descproduto', 'desc'],
 };
 
