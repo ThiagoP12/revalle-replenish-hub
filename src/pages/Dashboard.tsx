@@ -79,14 +79,17 @@ export default function Dashboard() {
     return filtered;
   }, [protocolos, isAdmin, user?.unidade, unidadeFiltro, periodoFiltro]);
 
+  // Total de motoristas únicos da base (todos os protocolos, não filtrados)
+  const totalMotoristasBase = useMemo(() => {
+    return new Set(protocolos.filter(p => !p.oculto).map(p => p.motorista.id || p.motorista.codigo)).size;
+  }, [protocolos]);
+
   // Estatísticas dinâmicas
   const stats = useMemo(() => {
     const emAberto = protocolosFiltrados.filter(p => p.status === 'aberto').length;
     const emAndamento = protocolosFiltrados.filter(p => p.status === 'em_andamento').length;
     const encerrados = protocolosFiltrados.filter(p => p.status === 'encerrado').length;
     const totalProtocolos = protocolosFiltrados.length;
-    
-    const motoristasUnicos = new Set(protocolosFiltrados.map(p => p.motorista.id)).size;
     
     const totalHoje = protocolosFiltrados.filter(p => {
       try {
@@ -111,7 +114,7 @@ export default function Dashboard() {
       ? Math.round(((totalHoje - totalOntem) / totalOntem) * 100) 
       : totalHoje > 0 ? 100 : 0;
 
-    return { emAberto, emAndamento, encerrados, totalProtocolos, motoristasUnicos, totalHoje, tendenciaHoje };
+    return { emAberto, emAndamento, encerrados, totalProtocolos, totalHoje, tendenciaHoje };
   }, [protocolosFiltrados]);
 
   // Alertas - respeitando regra SLA (verde <12h, amarelo 12-24h, vermelho >24h)
@@ -411,7 +414,7 @@ export default function Dashboard() {
         />
         <StatCard
           title="Total de Motoristas"
-          value={stats.motoristasUnicos}
+          value={totalMotoristasBase}
           icon={Truck}
           variant="info"
           delay={300}
