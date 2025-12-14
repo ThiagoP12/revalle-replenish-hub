@@ -31,10 +31,13 @@ import {
   Check,
   Truck,
   Phone,
-  Camera
+  Camera,
+  Send,
+  RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ProtocoloDetailsProps {
   protocolo: Protocolo | null;
@@ -68,6 +71,8 @@ export function ProtocoloDetails({
   const [arquivoAnexado, setArquivoAnexado] = useState<File | null>(null);
   const [editandoWhatsapp, setEditandoWhatsapp] = useState(false);
   const [whatsappEditado, setWhatsappEditado] = useState(protocolo?.motorista.whatsapp || '');
+  const [clienteTelefone, setClienteTelefone] = useState(protocolo?.clienteTelefone || '');
+  const [enviandoWhatsapp, setEnviandoWhatsapp] = useState(false);
 
   if (!protocolo) return null;
 
@@ -178,6 +183,80 @@ export function ProtocoloDetails({
     
     onUpdateProtocolo(protocoloAtualizado);
     toast.success(protocolo.validacao ? 'Validação removida!' : 'Protocolo validado!');
+  };
+
+  const handleReenviarWhatsapp = async (tipo: 'lancar' | 'encerrar') => {
+    if (!clienteTelefone.trim()) {
+      toast.error('Digite o telefone do cliente para reenviar');
+      return;
+    }
+
+    if (!onUpdateProtocolo) return;
+
+    setEnviandoWhatsapp(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('enviar-whatsapp', {
+        body: {
+          tipo,
+          numero: protocolo.numero,
+          data: protocolo.data,
+          hora: protocolo.hora,
+          mapa: protocolo.mapa,
+          notaFiscal: protocolo.notaFiscal,
+          motoristaNome: protocolo.motorista.nome,
+          motoristaWhatsapp: protocolo.motorista.whatsapp,
+          motoristaEmail: protocolo.motorista.email,
+          unidade: protocolo.unidadeNome,
+          observacaoGeral: protocolo.observacaoGeral,
+          produtos: protocolo.produtos,
+          fotosProtocolo: protocolo.fotosProtocolo,
+          mensagemEncerramento: protocolo.mensagemEncerramento || 'Encerrando protocolo',
+          clienteTelefone
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        const statusField = tipo === 'lancar' ? 'enviadoLancarStatus' : 'enviadoEncerrarStatus';
+        const erroField = tipo === 'lancar' ? 'enviadoLancarErro' : 'enviadoEncerrarErro';
+        const enviadoField = tipo === 'lancar' ? 'enviadoLancar' : 'enviadoEncerrar';
+        
+        const protocoloAtualizado: Protocolo = {
+          ...protocolo,
+          [enviadoField]: true,
+          [statusField]: 'enviado',
+          [erroField]: undefined,
+          clienteTelefone,
+          habilitarReenvio: false,
+          observacoesLog: [
+            ...(protocolo.observacoesLog || []),
+            {
+              id: Date.now().toString(),
+              usuarioNome: user?.nome || 'Sistema',
+              usuarioId: user?.id || '',
+              data: format(new Date(), 'dd/MM/yyyy'),
+              hora: format(new Date(), 'HH:mm'),
+              acao: tipo === 'lancar' ? 'Reenviou mensagem de lançamento' : 'Reenviou mensagem de encerramento',
+              texto: `Mensagem reenviada para ${clienteTelefone}`
+            }
+          ]
+        };
+        
+        onUpdateProtocolo(protocoloAtualizado);
+        setHabilitarReenvio(false);
+        toast.success(`Mensagem de ${tipo === 'lancar' ? 'lançamento' : 'encerramento'} reenviada com sucesso!`);
+      } else {
+        throw new Error(data?.error || 'Erro desconhecido');
+      }
+    } catch (error) {
+      console.error('Erro ao reenviar:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao enviar mensagem';
+      toast.error(`Falha ao reenviar: ${errorMessage}`);
+    } finally {
+      setEnviandoWhatsapp(false);
+    }
   };
 
   const handleDownload = () => {
@@ -480,6 +559,52 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
                     />
                     <span className="text-base font-bold text-foreground uppercase">HABILITAR REENVIO?</span>
                   </div>
+                  
+                  {/* Campo de telefone do cliente e botões de reenvio */}
+                  {habilitarReenvio && (
+                    <div className="mt-3 p-4 bg-primary/5 border border-primary/20 rounded-lg space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Phone size={16} className="text-primary" />
+                        <span className="text-sm font-bold text-foreground uppercase">Telefone do Cliente:</span>
+                      </div>
+                      <Input 
+                        value={clienteTelefone}
+                        onChange={(e) => setClienteTelefone(e.target.value)}
+                        placeholder="(XX) XXXXX-XXXX"
+                        className="max-w-xs"
+                      />
+                      <div className="flex gap-2 pt-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleReenviarWhatsapp('lancar')}
+                          disabled={enviandoWhatsapp || !clienteTelefone.trim()}
+                          className="gap-2"
+                        >
+                          {enviandoWhatsapp ? (
+                            <RefreshCw size={14} className="animate-spin" />
+                          ) : (
+                            <Send size={14} />
+                          )}
+                          Reenviar Lançamento
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => handleReenviarWhatsapp('encerrar')}
+                          disabled={enviandoWhatsapp || !clienteTelefone.trim()}
+                          className="gap-2"
+                        >
+                          {enviandoWhatsapp ? (
+                            <RefreshCw size={14} className="animate-spin" />
+                          ) : (
+                            <Send size={14} />
+                          )}
+                          Reenviar Encerramento
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-start gap-2">
                     <span className="text-base font-bold text-foreground uppercase">OBSERVAÇÃO:</span>
                     <span className="text-base text-foreground">{protocolo.observacaoGeral || '-'}</span>
