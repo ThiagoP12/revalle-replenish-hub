@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { format, isToday, parseISO, differenceInHours, subDays } from 'date-fns';
+import { format, isToday, parseISO, differenceInHours, differenceInDays, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { 
@@ -297,12 +297,20 @@ export default function Dashboard() {
     return nome.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
   };
 
-  // Função para cor do SLA
-  const getSlaStyle = (sla: string) => {
-    const horas = parseInt(sla);
-    if (horas < 12) return { icon: '🟢', color: 'text-emerald-600 bg-emerald-500/10' };
-    if (horas < 24) return { icon: '🟡', color: 'text-amber-600 bg-amber-500/10' };
-    return { icon: '🔴', color: 'text-red-600 bg-red-500/10' };
+  // Função para cor do SLA - padronizada com página Protocolos (dias)
+  const calcularSlaDias = (createdAt: string): number => {
+    try {
+      const dataProtocolo = parseISO(createdAt);
+      return differenceInDays(new Date(), dataProtocolo);
+    } catch {
+      return 0;
+    }
+  };
+
+  const getSlaColor = (dias: number): string => {
+    if (dias >= 15) return 'text-[#1F2937] bg-[#FCA5A5]';
+    if (dias > 7) return 'text-[#1F2937] bg-[#FDE68A]';
+    return 'text-[#1F2937] bg-[#86EFAC]';
   };
 
   // Cor para avatar baseado no nome
@@ -384,12 +392,14 @@ export default function Dashboard() {
           href="/protocolos?status=aberto"
         />
         <StatCard
-          title="Encerrados"
-          value={stats.encerrados}
+          title="Encerrados Hoje"
+          value={protocolosFiltrados.filter(p => p.status === 'encerrado' && (() => {
+            try { return isToday(parseISO(p.createdAt)); } catch { return false; }
+          })()).length}
           icon={CheckCircle}
           variant="success"
           delay={100}
-          href="/protocolos?status=encerrado"
+          href="/protocolos?status=encerrado&periodo=hoje"
         />
         <StatCard
           title="Total de Protocolos"
@@ -411,10 +421,8 @@ export default function Dashboard() {
           title="Total Hoje"
           value={stats.totalHoje}
           icon={Calendar}
-          variant="primary"
+          variant="info"
           delay={400}
-          trend={stats.tendenciaHoje > 0 ? 'up' : stats.tendenciaHoje < 0 ? 'down' : 'neutral'}
-          trendValue={`${stats.tendenciaHoje > 0 ? '+' : ''}${stats.tendenciaHoje}% vs ontem`}
           href="/protocolos?periodo=hoje"
         />
       </div>
@@ -529,7 +537,7 @@ export default function Dashboard() {
             </thead>
             <tbody>
               {recentProtocolos.map((protocolo) => {
-                const slaStyle = getSlaStyle(protocolo.sla);
+                const slaDias = calcularSlaDias(protocolo.createdAt);
                 
                 return (
                   <tr 
@@ -549,9 +557,8 @@ export default function Dashboard() {
                     </td>
                     <td className="p-4 text-muted-foreground">{protocolo.data}</td>
                     <td className="p-4">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium ${slaStyle.color}`}>
-                        <span>{slaStyle.icon}</span>
-                        {protocolo.sla}
+                      <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium ${getSlaColor(slaDias)}`}>
+                        {slaDias} {slaDias === 1 ? 'dia' : 'dias'}
                       </span>
                     </td>
                     <td className="p-4">
@@ -560,9 +567,9 @@ export default function Dashboard() {
                     <td className="p-4 text-right">
                       <Link to={`/protocolos?id=${protocolo.id}`}>
                         <Button 
-                          variant="ghost" 
+                          variant="outline" 
                           size="sm"
-                          className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                          className="border-emerald-500 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
                         >
                           <Eye size={16} className="mr-1" />
                           Ver

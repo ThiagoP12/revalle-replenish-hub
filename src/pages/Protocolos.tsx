@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Protocolo, ObservacaoLog } from '@/types';
 import { useProtocolos } from '@/contexts/ProtocolosContext';
 import { SearchInput } from '@/components/ui/SearchInput';
@@ -20,10 +21,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Eye, CheckCircle, XCircle, Send, Filter, X, MoreVertical, ChevronRight, Phone, Download, Plus, EyeOff, Trash2, FileText } from 'lucide-react';
+import { Eye, CheckCircle, XCircle, Send, Filter, X, MoreVertical, Phone, Download, Plus, EyeOff, Trash2, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { differenceInDays, parseISO, format, isAfter, isBefore, parse } from 'date-fns';
+import { differenceInDays, parseISO, format, isAfter, isBefore, parse, isToday } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import CreateProtocoloModal from '@/components/CreateProtocoloModal';
 
@@ -40,6 +41,7 @@ const getSlaColor = (dias: number): string => {
 };
 
 export default function Protocolos() {
+  const [searchParams] = useSearchParams();
   const { canValidate, canLaunch, isAdmin, isDistribuicao, isConferente, user } = useAuth();
   const { protocolos, addProtocolo, updateProtocolo, deleteProtocolo } = useProtocolos();
   const [search, setSearch] = useState('');
@@ -52,10 +54,36 @@ export default function Protocolos() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [periodoFilter, setPeriodoFilter] = useState<string>('todos');
   
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+
+  // Processar parâmetros da URL
+  useEffect(() => {
+    const statusParam = searchParams.get('status');
+    const periodoParam = searchParams.get('periodo');
+    const idParam = searchParams.get('id');
+    
+    if (statusParam) {
+      setActiveTab(statusParam);
+    }
+    
+    if (periodoParam) {
+      setPeriodoFilter(periodoParam);
+    }
+    
+    // Se tiver ID, abrir o protocolo correspondente
+    if (idParam) {
+      const protocolo = protocolos.find(p => p.id === idParam);
+      if (protocolo) {
+        const index = protocolos.findIndex(p => p.id === idParam);
+        setSelectedProtocolo(protocolo);
+        setSelectedIndex(index);
+      }
+    }
+  }, [searchParams, protocolos]);
 
   const filteredProtocolos = protocolos
     .filter(p => {
@@ -70,6 +98,16 @@ export default function Protocolos() {
         p.mapa?.includes(search);
       
       const statusMatch = activeTab === 'todos' || p.status === activeTab;
+      
+      // Filtro de período (hoje)
+      let periodoMatch = true;
+      if (periodoFilter === 'hoje') {
+        try {
+          periodoMatch = isToday(parseISO(p.createdAt));
+        } catch {
+          periodoMatch = false;
+        }
+      }
       
       // Filtro de data inicial
       let dataInicialMatch = true;
@@ -97,7 +135,7 @@ export default function Protocolos() {
         (validadoFilter === 'sim' && p.validacao) || 
         (validadoFilter === 'nao' && !p.validacao);
       
-      return searchMatch && statusMatch && dataInicialMatch && dataFinalMatch && lancadoMatch && validadoMatch;
+      return searchMatch && statusMatch && periodoMatch && dataInicialMatch && dataFinalMatch && lancadoMatch && validadoMatch;
     })
     // Ordenar por SLA: mais antigos primeiro (maior SLA = topo)
     .sort((a, b) => {
@@ -552,33 +590,33 @@ STATUS: Validado: ${protocolo.validacao ? 'Sim' : 'Não'} | Lançado: ${protocol
                     )}
                   </td>
                   <td className="p-4">
-                    <div className="flex justify-end items-center gap-1">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreVertical size={16} />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-white">
-                          {/* Ver detalhes - Todos os perfis */}
-                          <DropdownMenuItem onClick={() => {
-                            setSelectedProtocolo(protocolo);
-                            setSelectedIndex(globalIndex);
-                          }}>
-                            <Eye size={16} className="mr-2" />
-                            Ver detalhes
-                          </DropdownMenuItem>
-                          
-                          {/* Ocultar - Apenas Admin */}
-                          {isAdmin && (
+                    <div className="flex justify-end items-center gap-2">
+                      {/* Botão olho verde - sempre visível */}
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="border-emerald-500 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                        onClick={() => {
+                          setSelectedProtocolo(protocolo);
+                          setSelectedIndex(globalIndex);
+                        }}
+                      >
+                        <Eye size={16} />
+                      </Button>
+                      
+                      {/* Menu dropdown apenas para admin */}
+                      {isAdmin && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreVertical size={16} />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="bg-white">
                             <DropdownMenuItem onClick={() => handleOcultar(protocolo.id)}>
                               <EyeOff size={16} className="mr-2" />
                               Ocultar
                             </DropdownMenuItem>
-                          )}
-                          
-                          {/* Excluir - Apenas Admin */}
-                          {isAdmin && (
                             <DropdownMenuItem 
                               onClick={() => handleExcluir(protocolo.id)}
                               className="text-destructive focus:text-destructive"
@@ -586,9 +624,9 @@ STATUS: Validado: ${protocolo.validacao ? 'Sim' : 'Não'} | Lançado: ${protocol
                               <Trash2 size={16} className="mr-2" />
                               Excluir
                             </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   </td>
                 </tr>
