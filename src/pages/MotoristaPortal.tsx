@@ -528,29 +528,36 @@ export default function MotoristaPortal() {
       />
 
       {/* Tabs */}
-      <div className="px-3 pt-4 pb-2 max-w-lg mx-auto">
+      <div className="px-4 pt-5 pb-2 max-w-lg mx-auto">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 h-12">
-            <TabsTrigger value="novo" className="text-sm gap-2">
+          <TabsList className="grid w-full grid-cols-2 h-12 bg-muted/60 p-1 rounded-xl">
+            <TabsTrigger 
+              value="novo" 
+              className="text-sm gap-2 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+            >
               <PlusCircle className="w-4 h-4" />
               Novo Protocolo
             </TabsTrigger>
-            <TabsTrigger value="meus" className="text-sm gap-2">
+            <TabsTrigger 
+              value="meus" 
+              className="text-sm gap-2 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+            >
               <FileText className="w-4 h-4" />
               Meus Protocolos
             </TabsTrigger>
           </TabsList>
 
           {/* Tab: Novo Protocolo */}
-          <TabsContent value="novo" className="mt-4 pb-24">
-            <Card className="shadow-lg border-border/50">
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Package className="h-5 w-5 text-primary" />
-                  Abrir Protocolo
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-5">
+          <TabsContent value="novo" className="mt-5 pb-24 space-y-4">
+            {/* Seção: Dados Gerais */}
+            <div className="bg-card rounded-2xl shadow-md border border-border/50 overflow-hidden">
+              <div className="bg-gradient-to-r from-primary/10 to-primary/5 px-4 py-3 border-b border-border/30">
+                <h3 className="font-semibold text-foreground flex items-center gap-2">
+                  <Package className="h-4 w-4 text-primary" />
+                  Dados Gerais
+                </h3>
+              </div>
+              <div className="p-4 space-y-4">
                 {/* General Info */}
                 <div className="space-y-4">
                   <div className="space-y-2">
@@ -616,8 +623,18 @@ export default function MotoristaPortal() {
                     )}
                   </div>
                 </div>
+              </div>
+            </div>
 
-                {/* Tipo Reposição e Causa */}
+            {/* Seção: Tipo e Causa */}
+            <div className="bg-card rounded-2xl shadow-md border border-border/50 overflow-hidden">
+              <div className="bg-gradient-to-r from-primary/10 to-primary/5 px-4 py-3 border-b border-border/30">
+                <h3 className="font-semibold text-foreground flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-primary" />
+                  Tipo e Causa
+                </h3>
+              </div>
+              <div className="p-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
@@ -683,24 +700,27 @@ export default function MotoristaPortal() {
                     )}
                   </div>
                 </div>
+              </div>
+            </div>
 
-                {/* Products Section */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="flex items-center gap-2 text-sm font-medium">
-                      <Package className="h-4 w-4 text-primary" />
-                      Produtos
-                      {tipoReposicao === 'inversao' && (
-                        <span className="text-xs text-muted-foreground font-normal">(apenas 1)</span>
-                      )}
-                    </Label>
-                    {podeAdicionarMultiplos && (
-                      <Button type="button" variant="outline" size="sm" onClick={addProduto} className="h-9">
-                        <Plus className="mr-1 h-4 w-4" />
-                        Adicionar
-                      </Button>
-                    )}
-                  </div>
+            {/* Seção: Produtos */}
+            <div className="bg-card rounded-2xl shadow-md border border-border/50 overflow-hidden">
+              <div className="bg-gradient-to-r from-primary/10 to-primary/5 px-4 py-3 border-b border-border/30 flex items-center justify-between">
+                <h3 className="font-semibold text-foreground flex items-center gap-2">
+                  <Package className="h-4 w-4 text-primary" />
+                  Produtos
+                  {tipoReposicao === 'inversao' && (
+                    <span className="text-xs text-muted-foreground font-normal ml-1">(apenas 1)</span>
+                  )}
+                </h3>
+                {podeAdicionarMultiplos && (
+                  <Button type="button" variant="ghost" size="sm" onClick={addProduto} className="h-8 text-primary hover:text-primary hover:bg-primary/10">
+                    <Plus className="mr-1 h-4 w-4" />
+                    Adicionar
+                  </Button>
+                )}
+              </div>
+              <div className="p-4 space-y-3">
                   
                   {produtos.map((produto, index) => {
                     const isTouched = touched.produtos[index];
@@ -816,15 +836,21 @@ export default function MotoristaPortal() {
                       </div>
                     );
                   })}
-                </div>
+              </div>
+            </div>
 
-                {/* Photos Section */}
+            {/* Seção: Fotos */}
+            <div className="bg-card rounded-2xl shadow-md border border-border/50 overflow-hidden">
+              <div className="bg-gradient-to-r from-primary/10 to-primary/5 px-4 py-3 border-b border-border/30">
+                <h3 className="font-semibold text-foreground flex items-center gap-2">
+                  <Camera className="h-4 w-4 text-primary" />
+                  Fotos
+                  <span className="text-xs text-muted-foreground font-normal">(opcional)</span>
+                </h3>
+              </div>
+              <div className="p-4">
                 {tipoReposicao ? (
                   <div className="space-y-3">
-                    <Label className="flex items-center gap-2 text-sm font-medium">
-                      <Camera className="h-4 w-4 text-primary" />
-                      Fotos (opcional)
-                    </Label>
                     
                     <div className="space-y-3">
                       <PhotoUploadCard
@@ -853,22 +879,27 @@ export default function MotoristaPortal() {
                     </div>
                   </div>
                 ) : (
-                  <div className="p-4 bg-muted/30 rounded-xl border border-dashed border-border text-center">
-                    <Camera className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  <div className="py-8 text-center">
+                    <div className="w-14 h-14 mx-auto bg-muted/50 rounded-full flex items-center justify-center mb-3">
+                      <Camera className="h-7 w-7 text-muted-foreground" />
+                    </div>
                     <p className="text-sm text-muted-foreground">
-                      Selecione o tipo de reposição para ver as fotos necessárias
+                      Selecione o tipo de reposição para ver as fotos
                     </p>
                   </div>
                 )}
+              </div>
+            </div>
 
-                {/* Contato Section */}
-                <div className="space-y-4">
-                  <Label className="flex items-center gap-2 text-sm font-medium">
-                    <Phone className="h-4 w-4 text-primary" />
-                    Contato
-                  </Label>
-                  
-                  <div className="grid grid-cols-1 gap-3">
+            {/* Seção: Contato */}
+            <div className="bg-card rounded-2xl shadow-md border border-border/50 overflow-hidden">
+              <div className="bg-gradient-to-r from-primary/10 to-primary/5 px-4 py-3 border-b border-border/30">
+                <h3 className="font-semibold text-foreground flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-primary" />
+                  Contato
+                </h3>
+              </div>
+              <div className="p-4 space-y-3">
                     <div className="space-y-1.5">
                       <Label htmlFor="whatsappContato" className="text-xs font-medium text-muted-foreground">
                         WhatsApp *
@@ -907,23 +938,29 @@ export default function MotoristaPortal() {
                         inputMode="email"
                       />
                     </div>
-                  </div>
-                </div>
+              </div>
+            </div>
 
-                {/* Observation */}
-                <div className="space-y-2">
-                  <Label htmlFor="observacao" className="text-sm font-medium">Observação (opcional)</Label>
-                  <Textarea
-                    id="observacao"
-                    value={observacao}
-                    onChange={(e) => setObservacao(e.target.value)}
-                    placeholder="Adicione observações relevantes..."
-                    rows={3}
-                    className="text-base resize-none"
-                  />
-                </div>
-              </CardContent>
-            </Card>
+            {/* Seção: Observação */}
+            <div className="bg-card rounded-2xl shadow-md border border-border/50 overflow-hidden">
+              <div className="bg-gradient-to-r from-primary/10 to-primary/5 px-4 py-3 border-b border-border/30">
+                <h3 className="font-semibold text-foreground flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-primary" />
+                  Observação
+                  <span className="text-xs text-muted-foreground font-normal">(opcional)</span>
+                </h3>
+              </div>
+              <div className="p-4">
+                <Textarea
+                  id="observacao"
+                  value={observacao}
+                  onChange={(e) => setObservacao(e.target.value)}
+                  placeholder="Adicione observações relevantes..."
+                  rows={3}
+                  className="text-base resize-none border-border/50"
+                />
+              </div>
+            </div>
           </TabsContent>
 
           {/* Tab: Meus Protocolos */}
@@ -935,11 +972,11 @@ export default function MotoristaPortal() {
 
       {/* Sticky Submit Button - Only show on new protocol tab */}
       {activeTab === 'novo' && (
-        <div className="fixed bottom-0 left-0 right-0 p-3 bg-background/95 backdrop-blur-sm border-t border-border safe-area-bottom">
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background via-background/95 to-background/0 safe-area-bottom">
           <div className="max-w-lg mx-auto">
             <Button 
               onClick={handleSubmit} 
-              className="w-full h-14 text-base font-semibold shadow-lg"
+              className="w-full h-14 text-base font-semibold shadow-xl bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary rounded-xl"
               disabled={isCompressing}
             >
               <CheckCircle className="mr-2 h-5 w-5" />
