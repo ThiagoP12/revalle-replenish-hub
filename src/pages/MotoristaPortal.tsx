@@ -1003,25 +1003,24 @@ export default function MotoristaPortal() {
 
       {/* Sticky Submit Button - Only show on new protocol tab */}
       {activeTab === 'novo' && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t border-border z-50 safe-area-bottom">
+        <div 
+          className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t border-border safe-area-bottom"
+          style={{ zIndex: 9999 }}
+        >
           <div className="max-w-lg mx-auto">
-            <Button 
+            <button 
               type="button"
-              onClick={() => {
-                console.log('Botão clicado - iniciando submit');
+              onClick={(e) => {
+                e.stopPropagation();
                 handleSubmit();
               }}
-              onTouchEnd={(e) => {
-                e.preventDefault();
-                console.log('Touch end - iniciando submit');
-                handleSubmit();
-              }}
-              className="w-full h-14 text-base font-semibold shadow-lg bg-primary hover:bg-primary/90 rounded-xl active:scale-[0.98] transition-transform touch-manipulation"
               disabled={isCompressing}
+              className="w-full h-14 flex items-center justify-center gap-2 text-base font-semibold shadow-lg bg-primary text-primary-foreground rounded-xl active:opacity-80 disabled:opacity-50"
+              style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
             >
-              <CheckCircle className="mr-2 h-5 w-5" />
-              {isCompressing ? 'Processando imagem...' : 'Enviar Protocolo'}
-            </Button>
+              <CheckCircle className="h-5 w-5" />
+              <span>{isCompressing ? 'Processando imagem...' : 'Enviar Protocolo'}</span>
+            </button>
           </div>
         </div>
       )}
