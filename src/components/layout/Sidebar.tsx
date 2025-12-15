@@ -76,76 +76,74 @@ export function Sidebar() {
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed lg:static inset-y-0 left-0 z-40 w-64 bg-sidebar transform transition-transform duration-300 ease-in-out",
+        "fixed lg:static inset-y-0 left-0 z-40 w-64 bg-sidebar transform transition-transform duration-300 ease-in-out flex flex-col",
         "lg:transform-none",
         isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
-        <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="p-6 border-b border-sidebar-border">
-            <h1 className="font-heading text-2xl font-bold text-white">
-              Revalle
-            </h1>
-            <p className="text-sm text-sidebar-foreground/60 mt-1">Sistema de Reposição</p>
-          </div>
+        {/* Logo - Fixed height */}
+        <div className="flex-shrink-0 p-6 border-b border-sidebar-border">
+          <h1 className="font-heading text-2xl font-bold text-white">
+            Revalle
+          </h1>
+          <p className="text-sm text-sidebar-foreground/60 mt-1">Sistema de Reposição</p>
+        </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-1">
-            {filteredNavItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.path;
-              
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setIsOpen(false)}
-                  className={cn(
-                    "sidebar-item",
-                    isActive && "active"
-                  )}
-                >
-                  <Icon size={20} />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
+        {/* Navigation - Scrollable */}
+        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+          {filteredNavItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.path;
+            
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={() => setIsOpen(false)}
+                className={cn(
+                  "sidebar-item",
+                  isActive && "active"
+                )}
+              >
+                <Icon size={20} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
 
-          {/* User Profile Section */}
-          <div className="p-4 border-t border-sidebar-border">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                <User size={20} className="text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-sidebar-foreground truncate">
-                  {user?.nome || 'Usuário'}
-                </p>
-                <div className="flex items-center gap-1 text-xs text-sidebar-foreground/60">
-                  <Building2 size={12} />
-                  <span className="truncate">{user?.unidade || 'Sem unidade'}</span>
-                </div>
+        {/* User Profile Section - Fixed at bottom */}
+        <div className="flex-shrink-0 p-4 border-t border-sidebar-border">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+              <User size={18} className="text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-sidebar-foreground truncate">
+                {user?.nome || 'Usuário'}
+              </p>
+              <div className="flex items-center gap-1 text-xs text-sidebar-foreground/60">
+                <Building2 size={11} />
+                <span className="truncate">{user?.unidade || 'Sem unidade'}</span>
               </div>
             </div>
-            <Badge variant={roleBadge.variant} className="w-full justify-center">
+            <Badge variant={roleBadge.variant} className="flex-shrink-0 text-xs px-2 py-0.5">
               {roleBadge.label}
             </Badge>
           </div>
+        </div>
 
-          {/* Logout Button */}
-          <div className="p-4 border-t border-sidebar-border">
-            <button
-              onClick={() => {
-                setIsOpen(false);
-                logout();
-              }}
-              className="sidebar-item w-full text-destructive hover:bg-destructive/10"
-            >
-              <LogOut size={20} />
-              <span>Sair</span>
-            </button>
-          </div>
+        {/* Logout Button - Fixed at bottom */}
+        <div className="flex-shrink-0 p-4 pt-0">
+          <button
+            onClick={() => {
+              setIsOpen(false);
+              logout();
+            }}
+            className="sidebar-item w-full text-destructive hover:bg-destructive/10"
+          >
+            <LogOut size={20} />
+            <span>Sair</span>
+          </button>
         </div>
       </aside>
     </>
