@@ -70,7 +70,7 @@ const getInputClassName = (field: 'codigo' | 'senha') => {
           title: "Login realizado!",
           description: "Bem-vindo ao portal do motorista.",
         });
-        navigate('/motorista');
+        navigate('/motorista/portal');
       } else {
         toast({
           title: "Erro no login",
