@@ -1,9 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
 
 // Configuração SMTP
 const SMTP_HOST = Deno.env.get("SMTP_HOST") || "mail.revalle.com.br";
-const SMTP_PORT = 465; // SSL implícito
+const SMTP_PORT = 465;
 const SMTP_USER = Deno.env.get("SMTP_USER") || "";
 const SMTP_PASS = Deno.env.get("SMTP_PASS") || "";
 
@@ -112,13 +111,11 @@ function gerarEmailLancar(data: EnviarEmailRequest): string {
     </head>
     <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f9fafb;">
       <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-        <!-- Header -->
         <div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); padding: 24px; text-align: center;">
           <h1 style="color: #ffffff; margin: 0; font-size: 24px;">🚚 Revalle Distribuição</h1>
           <p style="color: #bfdbfe; margin: 8px 0 0 0; font-size: 14px;">Sistema de Protocolos</p>
         </div>
         
-        <!-- Content -->
         <div style="padding: 24px;">
           <div style="background-color: #dbeafe; border-left: 4px solid #2563eb; padding: 16px; margin-bottom: 24px;">
             <h2 style="color: #1e40af; margin: 0 0 8px 0; font-size: 18px;">📋 Novo Protocolo Aberto</h2>
@@ -221,7 +218,6 @@ function gerarEmailLancar(data: EnviarEmailRequest): string {
           ` : ''}
         </div>
         
-        <!-- Footer -->
         <div style="background-color: #f3f4f6; padding: 16px; text-align: center; border-top: 1px solid #e5e7eb;">
           <p style="color: #6b7280; margin: 0; font-size: 12px;">
             Este é um e-mail automático do Sistema de Protocolos Revalle.<br>
@@ -244,13 +240,11 @@ function gerarEmailEncerrar(data: EnviarEmailRequest): string {
     </head>
     <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f9fafb;">
       <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-        <!-- Header -->
         <div style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); padding: 24px; text-align: center;">
           <h1 style="color: #ffffff; margin: 0; font-size: 24px;">🚚 Revalle Distribuição</h1>
           <p style="color: #a7f3d0; margin: 8px 0 0 0; font-size: 14px;">Sistema de Protocolos</p>
         </div>
         
-        <!-- Content -->
         <div style="padding: 24px;">
           <div style="background-color: #d1fae5; border-left: 4px solid #059669; padding: 16px; margin-bottom: 24px;">
             <h2 style="color: #065f46; margin: 0 0 8px 0; font-size: 18px;">✅ Protocolo Encerrado</h2>
@@ -304,7 +298,6 @@ function gerarEmailEncerrar(data: EnviarEmailRequest): string {
           ` : ''}
         </div>
         
-        <!-- Footer -->
         <div style="background-color: #f3f4f6; padding: 16px; text-align: center; border-top: 1px solid #e5e7eb;">
           <p style="color: #6b7280; margin: 0; font-size: 12px;">
             Este é um e-mail automático do Sistema de Protocolos Revalle.<br>
@@ -317,8 +310,109 @@ function gerarEmailEncerrar(data: EnviarEmailRequest): string {
   `;
 }
 
+// Função para codificar em Base64
+function encodeBase64(str: string): string {
+  return btoa(unescape(encodeURIComponent(str)));
+}
+
+// Cliente SMTP simplificado usando Deno.connectTls
+async function enviarEmailSMTP(
+  to: string,
+  subject: string,
+  htmlBody: string
+): Promise<void> {
+  console.log(`Conectando a ${SMTP_HOST}:${SMTP_PORT}...`);
+  
+  const conn = await Deno.connectTls({
+    hostname: SMTP_HOST,
+    port: SMTP_PORT,
+  });
+
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  async function read(): Promise<string> {
+    const buf = new Uint8Array(1024);
+    const n = await conn.read(buf);
+    if (n === null) throw new Error("Connection closed");
+    const response = decoder.decode(buf.subarray(0, n));
+    console.log("< " + response.trim());
+    return response;
+  }
+
+  async function write(cmd: string): Promise<void> {
+    console.log("> " + cmd.trim());
+    await conn.write(encoder.encode(cmd));
+  }
+
+  try {
+    // Ler saudação do servidor
+    await read();
+
+    // EHLO
+    await write(`EHLO localhost\r\n`);
+    await read();
+
+    // AUTH LOGIN
+    await write(`AUTH LOGIN\r\n`);
+    await read();
+
+    // Username (Base64)
+    await write(`${encodeBase64(SMTP_USER)}\r\n`);
+    await read();
+
+    // Password (Base64)
+    await write(`${encodeBase64(SMTP_PASS)}\r\n`);
+    const authResponse = await read();
+    if (!authResponse.startsWith("235")) {
+      throw new Error("Autenticação falhou: " + authResponse);
+    }
+
+    // MAIL FROM
+    await write(`MAIL FROM:<${SMTP_USER}>\r\n`);
+    await read();
+
+    // RCPT TO
+    await write(`RCPT TO:<${to}>\r\n`);
+    await read();
+
+    // DATA
+    await write(`DATA\r\n`);
+    await read();
+
+    // Corpo do email
+    const boundary = "----=_Part_" + Date.now();
+    const emailContent = [
+      `From: "Revalle Protocolos" <${SMTP_USER}>`,
+      `To: ${to}`,
+      `Subject: =?UTF-8?B?${encodeBase64(subject)}?=`,
+      `MIME-Version: 1.0`,
+      `Content-Type: multipart/alternative; boundary="${boundary}"`,
+      ``,
+      `--${boundary}`,
+      `Content-Type: text/html; charset=UTF-8`,
+      `Content-Transfer-Encoding: base64`,
+      ``,
+      encodeBase64(htmlBody),
+      ``,
+      `--${boundary}--`,
+      `.`,
+      ``
+    ].join("\r\n");
+
+    await write(emailContent);
+    await read();
+
+    // QUIT
+    await write(`QUIT\r\n`);
+    await read();
+
+  } finally {
+    conn.close();
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -363,53 +457,14 @@ const handler = async (req: Request): Promise<Response> => {
       ? gerarEmailLancar(data) 
       : gerarEmailEncerrar(data);
 
-    console.log("Criando cliente SMTP...");
+    await enviarEmailSMTP(data.clienteEmail, assunto, htmlContent);
 
-    // Criar cliente SMTP usando deno.land/x/smtp
-    const client = new SmtpClient();
+    console.log("E-mail enviado com sucesso!");
 
-    try {
-      // Conectar usando SSL implícito na porta 465
-      console.log("Conectando ao servidor SMTP...");
-      await client.connect({
-        hostname: SMTP_HOST,
-        port: SMTP_PORT,
-        username: SMTP_USER,
-        password: SMTP_PASS,
-      });
-
-      console.log("Enviando e-mail para:", data.clienteEmail);
-
-      // Enviar e-mail
-      await client.send({
-        from: SMTP_USER,
-        to: data.clienteEmail,
-        subject: assunto,
-        content: htmlContent,
-        html: htmlContent,
-      });
-
-      await client.close();
-
-      console.log("E-mail enviado com sucesso via SMTP");
-
-      return new Response(
-        JSON.stringify({ success: true, message: "E-mail enviado com sucesso" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-
-    } catch (smtpError: any) {
-      console.error("Erro SMTP:", smtpError);
-      
-      // Tentar fechar o cliente em caso de erro
-      try {
-        await client.close();
-      } catch (closeError) {
-        console.error("Erro ao fechar cliente:", closeError);
-      }
-      
-      throw smtpError;
-    }
+    return new Response(
+      JSON.stringify({ success: true, message: "E-mail enviado com sucesso" }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
 
   } catch (error: any) {
     console.error("Erro na função enviar-email:", error);
