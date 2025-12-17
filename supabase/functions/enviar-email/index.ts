@@ -1,7 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
-const MAILJET_API_KEY = Deno.env.get("MAILJET_API_KEY");
-const MAILJET_SECRET_KEY = Deno.env.get("MAILJET_SECRET_KEY");
+// Configuração SMTP
+const SMTP_HOST = Deno.env.get("SMTP_HOST");
+const SMTP_PORT = Deno.env.get("SMTP_PORT");
+const SMTP_USER = Deno.env.get("SMTP_USER");
+const SMTP_PASS = Deno.env.get("SMTP_PASS");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -346,37 +350,34 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Enviando e-mail para:", data.clienteEmail);
 
-    // Enviar usando Mailjet API
-    const emailResponse = await fetch("https://api.mailjet.com/v3.1/send", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Basic ${btoa(`${MAILJET_API_KEY}:${MAILJET_SECRET_KEY}`)}`,
+    // Configurar cliente SMTP
+    const client = new SMTPClient({
+      connection: {
+        hostname: SMTP_HOST!,
+        port: Number(SMTP_PORT) || 587,
+        tls: false,
+        auth: {
+          username: SMTP_USER!,
+          password: SMTP_PASS!,
+        },
       },
-      body: JSON.stringify({
-        Messages: [{
-          From: { Email: "reposicao@revalle.com.br", Name: "Revalle Protocolos" },
-          To: [{ Email: data.clienteEmail }],
-          Subject: assunto,
-          HTMLPart: htmlContent,
-        }]
-      }),
     });
 
-    const result = await emailResponse.json();
-    console.log("Resposta do Mailjet:", result);
+    // Enviar e-mail via SMTP
+    await client.send({
+      from: `Revalle Protocolos <${SMTP_USER}>`,
+      to: data.clienteEmail,
+      subject: assunto,
+      content: "Visualize este e-mail em um cliente que suporte HTML",
+      html: htmlContent,
+    });
 
-    if (!emailResponse.ok || (result.Messages && result.Messages[0]?.Status === "error")) {
-      const errorMsg = result.Messages?.[0]?.Errors?.[0]?.ErrorMessage || result.ErrorMessage || "Erro ao enviar e-mail";
-      console.error("Erro ao enviar e-mail:", result);
-      return new Response(
-        JSON.stringify({ success: false, error: errorMsg }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    await client.close();
+    
+    console.log("E-mail enviado com sucesso via SMTP");
 
     return new Response(
-      JSON.stringify({ success: true, data: result }),
+      JSON.stringify({ success: true, message: "E-mail enviado com sucesso" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
