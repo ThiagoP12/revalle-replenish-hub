@@ -6,6 +6,7 @@ import { useMotoristaAuth } from '@/contexts/MotoristaAuthContext';
 import { useProtocolos } from '@/contexts/ProtocolosContext';
 import { useOfflineProtocolos } from '@/hooks/useOfflineProtocolos';
 import { compressImage } from '@/utils/imageCompression';
+import { uploadFotosProtocolo } from '@/utils/uploadFotoStorage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -419,8 +420,18 @@ export default function MotoristaPortal() {
         description: `Protocolo ${numero} criado com sucesso`
       });
 
-      // Enviar webhook para n8n
+      // Fazer upload das fotos e enviar webhook para n8n
       try {
+        // Upload das fotos para o storage e obter URLs públicas
+        const fotosUrls = await uploadFotosProtocolo(
+          {
+            fotoMotoristaPdv,
+            fotoLoteProduto,
+            fotoAvaria
+          },
+          numero
+        );
+
         const webhookPayload = {
           numero,
           data: format(now, 'dd/MM/yyyy'),
@@ -436,7 +447,11 @@ export default function MotoristaPortal() {
           tipoReposicao: tipoReposicao.toUpperCase(),
           causa,
           produtos: produtosFormatados,
-          fotosProtocolo,
+          fotos: {
+            fotoMotoristaPdv: fotosUrls.fotoMotoristaPdv || '',
+            fotoLoteProduto: fotosUrls.fotoLoteProduto || '',
+            fotoAvaria: fotosUrls.fotoAvaria || ''
+          },
           whatsappContato: whatsappContato || '',
           emailContato: emailContato || '',
           observacaoGeral: observacao || ''
