@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/button';
 import { TablePagination } from '@/components/ui/TablePagination';
@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import { ImportarPdvsDialog } from '@/components/ImportarPdvsDialog';
 
 // Mapeamento de códigos para nomes de unidades
 const UNIDADES_MAP: { codigo: string; nome: string }[] = [
@@ -53,38 +54,43 @@ export default function Clientes() {
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Fetch PDVs
-  useEffect(() => {
-    const fetchPdvs = async () => {
-      setIsLoading(true);
-      try {
-        let query = supabase
-          .from('pdvs')
-          .select('*')
-          .order('nome');
+  const fetchPdvs = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      let query = supabase
+        .from('pdvs')
+        .select('*')
+        .order('nome');
 
-        // Filtro por unidade
-        if (!isAdmin && user?.unidade) {
-          query = query.eq('unidade', user.unidade);
-        } else if (isAdmin && unidadeFiltro !== 'todas') {
-          query = query.eq('unidade', unidadeFiltro);
-        }
-
-        const { data, error } = await query;
-
-        if (error) throw error;
-        setPdvs(data || []);
-      } catch (error) {
-        console.error('Erro ao buscar PDVs:', error);
-        toast.error('Erro ao carregar clientes');
-      } finally {
-        setIsLoading(false);
+      // Filtro por unidade
+      if (!isAdmin && user?.unidade) {
+        query = query.eq('unidade', user.unidade);
+      } else if (isAdmin && unidadeFiltro !== 'todas') {
+        query = query.eq('unidade', unidadeFiltro);
       }
-    };
 
-    fetchPdvs();
+      const { data, error } = await query;
+
+      if (error) throw error;
+      setPdvs(data || []);
+    } catch (error) {
+      console.error('Erro ao buscar PDVs:', error);
+      toast.error('Erro ao carregar clientes');
+    } finally {
+      setIsLoading(false);
+    }
   }, [isAdmin, user?.unidade, unidadeFiltro]);
+
+  useEffect(() => {
+    fetchPdvs();
+  }, [fetchPdvs, refreshKey]);
+
+  const handleImportSuccess = () => {
+    setRefreshKey(prev => prev + 1);
+  };
 
   // Filter by search
   const filteredPdvs = pdvs.filter(p => 
@@ -171,7 +177,8 @@ export default function Clientes() {
           </p>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <ImportarPdvsDialog onSuccess={handleImportSuccess} />
           <Button variant="outline" size="sm" onClick={exportToCSV}>
             <Download size={16} className="mr-2" />
             CSV
