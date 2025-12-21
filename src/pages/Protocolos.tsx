@@ -64,7 +64,7 @@ export default function Protocolos() {
   const { protocolos, addProtocolo, updateProtocolo, deleteProtocolo } = useProtocolos();
   
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<string>('todos');
+  const [activeTab, setActiveTab] = useState<string>('aberto');
   const [dataInicialFilter, setDataInicialFilter] = useState('');
   const [dataFinalFilter, setDataFinalFilter] = useState('');
   const [lancadoFilter, setLancadoFilter] = useState<string>('todos');
@@ -484,13 +484,14 @@ export default function Protocolos() {
   };
 
   const clearFilters = () => {
+    setActiveTab('aberto');
     setDataInicialFilter('');
     setDataFinalFilter('');
     setLancadoFilter('todos');
     setValidadoFilter('todos');
   };
 
-  const hasActiveFilters = dataInicialFilter || dataFinalFilter || lancadoFilter !== 'todos' || validadoFilter !== 'todos';
+  const hasActiveFilters = activeTab === 'todos' || dataInicialFilter || dataFinalFilter || lancadoFilter !== 'todos' || validadoFilter !== 'todos';
 
   return (
     <div className="space-y-4">
@@ -549,15 +550,9 @@ export default function Protocolos() {
         </div>
       </div>
 
-      {/* Status Tabs - SEM contagem */}
+      {/* Status Tabs - SEM "Todos" */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="bg-transparent gap-1.5 h-auto p-0">
-          <TabsTrigger 
-            value="todos" 
-            className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent hover:bg-muted/50 rounded-xl px-2.5 py-1 text-xs transition-colors"
-          >
-            Todos
-          </TabsTrigger>
           <TabsTrigger 
             value="aberto" 
             className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent hover:bg-muted/50 rounded-xl px-2.5 py-1 text-xs transition-colors"
@@ -583,6 +578,21 @@ export default function Protocolos() {
       {showFilters && (
         <div className="bg-card rounded-xl p-4 shadow-md animate-scale-in">
           <div className="flex flex-wrap gap-3 items-end">
+            <div className="space-y-1 min-w-[110px]">
+              <label className="text-xs font-medium text-muted-foreground">Status</label>
+              <Select value={activeTab} onValueChange={setActiveTab}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="aberto">Abertos</SelectItem>
+                  <SelectItem value="em_andamento">Em andamento</SelectItem>
+                  <SelectItem value="encerrado">Encerrados</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
             <div className="space-y-1 min-w-[130px]">
               <label className="text-xs font-medium text-muted-foreground">Data Inicial</label>
               <Input
