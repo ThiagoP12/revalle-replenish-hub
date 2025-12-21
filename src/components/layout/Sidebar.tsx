@@ -11,9 +11,7 @@ import {
   LogOut,
   Menu,
   X,
-  Database,
   User,
-  Store,
   ClipboardList,
   MessageSquare
 } from 'lucide-react';
@@ -33,10 +31,8 @@ const navItems: NavItem[] = [
   { icon: FileText, label: 'Protocolos', path: '/protocolos', roles: ['admin', 'distribuicao', 'conferente'] },
   { icon: MessageSquare, label: 'Chat', path: '/chat', roles: ['admin', 'distribuicao', 'conferente'] },
   { icon: Truck, label: 'Motoristas', path: '/motoristas', roles: ['admin', 'distribuicao'] },
-  { icon: Store, label: 'Clientes', path: '/clientes', roles: ['admin', 'distribuicao'] },
   { icon: Building2, label: 'Unidades', path: '/unidades', roles: ['admin'] },
   { icon: Users, label: 'Usuários', path: '/usuarios', roles: ['admin'] },
-  { icon: Database, label: 'Importar Dados', path: '/importar-dados', roles: ['admin'] },
   { icon: ClipboardList, label: 'Logs de Auditoria', path: '/logs-auditoria', roles: ['admin'] },
   { icon: MessageSquare, label: 'Logs de Chat', path: '/logs-chat', roles: ['admin'] },
   { icon: Settings, label: 'Configurações', path: '/configuracoes', roles: ['admin'] },
