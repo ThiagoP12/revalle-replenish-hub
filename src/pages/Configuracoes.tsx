@@ -4,13 +4,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MessageSquare, Key, Clock, Building, Download, Save, Package, Users, FileText, MapPin } from 'lucide-react';
+import { MessageSquare, Key, Clock, Building, Download, Save, Package, Users, FileText, MapPin, Store } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ImportarProdutosCSV } from '@/components/ImportarProdutosCSV';
+import { ImportarPdvsCSV } from '@/components/ImportarPdvsCSV';
 import { useProdutosDB } from '@/hooks/useProdutosDB';
 import { useMotoristasDB } from '@/hooks/useMotoristasDB';
 import { useUnidadesDB } from '@/hooks/useUnidadesDB';
+import { usePdvsDB } from '@/hooks/usePdvsDB';
 import { useProtocolos } from '@/contexts/ProtocolosContext';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -20,7 +22,10 @@ export default function Configuracoes() {
   const [slaDefault, setSlaDefault] = useState('4');
   const [isSaving, setIsSaving] = useState(false);
   const [totalProdutos, setTotalProdutos] = useState<number>(0);
+  const [totalPdvs, setTotalPdvs] = useState<number>(0);
+  const [pdvsRefreshKey, setPdvsRefreshKey] = useState(0);
   const { getTotalProdutos } = useProdutosDB();
+  const { getTotalPdvs } = usePdvsDB();
   const { motoristas } = useMotoristasDB();
   const { unidades } = useUnidadesDB();
   const { protocolos } = useProtocolos();
@@ -38,9 +43,15 @@ export default function Configuracoes() {
     setTotalProdutos(total);
   };
 
+  const fetchTotalPdvs = async () => {
+    const total = await getTotalPdvs();
+    setTotalPdvs(total);
+  };
+
   useEffect(() => {
     fetchTotalProdutos();
-  }, []);
+    fetchTotalPdvs();
+  }, [pdvsRefreshKey]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -129,7 +140,7 @@ export default function Configuracoes() {
       </div>
 
       <Tabs defaultValue="whatsapp" className="space-y-4">
-        <TabsList className="bg-muted">
+        <TabsList className="bg-muted flex-wrap h-auto gap-1 p-1">
           <TabsTrigger value="whatsapp" className="gap-1.5 text-xs">
             <MessageSquare size={14} />
             WhatsApp
@@ -145,6 +156,10 @@ export default function Configuracoes() {
           <TabsTrigger value="produtos" className="gap-1.5 text-xs">
             <Package size={14} />
             Produtos
+          </TabsTrigger>
+          <TabsTrigger value="clientes" className="gap-1.5 text-xs">
+            <Store size={14} />
+            Clientes
           </TabsTrigger>
           <TabsTrigger value="exportar" className="gap-1.5 text-xs">
             <Download size={14} />
@@ -302,6 +317,37 @@ export default function Configuracoes() {
               <div>
                 <h3 className="font-medium mb-3">Importar Planilha de Produtos</h3>
                 <ImportarProdutosCSV onImportComplete={fetchTotalProdutos} />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="clientes">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Store className="text-primary" />
+                Clientes (PDVs)
+              </CardTitle>
+              <CardDescription>
+                Importe e gerencie os pontos de venda via planilha
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="p-4 bg-muted/50 rounded-lg border">
+                <p className="text-sm text-muted-foreground">Total de clientes cadastrados</p>
+                <p className="text-3xl font-bold text-foreground">{totalPdvs}</p>
+              </div>
+
+              <div>
+                <h3 className="font-medium mb-3">Importar Planilha de Clientes</h3>
+                <ImportarPdvsCSV />
+              </div>
+
+              <div className="pt-4 border-t">
+                <p className="text-sm text-muted-foreground">
+                  Para gerenciamento completo de clientes (editar, excluir, criar), acesse a página de Clientes no menu lateral.
+                </p>
               </div>
             </CardContent>
           </Card>

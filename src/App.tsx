@@ -19,7 +19,7 @@ import Configuracoes from "./pages/Configuracoes";
 import AbrirProtocolo from "./pages/AbrirProtocolo";
 import MotoristaLogin from "./pages/MotoristaLogin";
 import MotoristaPortal from "./pages/MotoristaPortal";
-import ImportarDados from "./pages/ImportarDados";
+
 import LogsAuditoria from "./pages/LogsAuditoria";
 import Chat from "./pages/Chat";
 import LogsChat from "./pages/LogsChat";
@@ -83,14 +83,6 @@ const App = () => (
                     element={
                       <ProtectedRoute allowedRoles={['admin']}>
                         <Configuracoes />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/importar-dados" 
-                    element={
-                      <ProtectedRoute allowedRoles={['admin']}>
-                        <ImportarDados />
                       </ProtectedRoute>
                     } 
                   />

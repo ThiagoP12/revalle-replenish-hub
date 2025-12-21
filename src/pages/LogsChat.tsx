@@ -62,6 +62,7 @@ export default function LogsChat() {
   const [searchTerm, setSearchTerm] = useState('');
   const [nivelFilter, setNivelFilter] = useState<string>('todos');
   const [tipoFilter, setTipoFilter] = useState<string>('todos');
+  const [usuarioFilter, setUsuarioFilter] = useState<string>('todos');
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
     from: undefined,
     to: undefined,
@@ -99,6 +100,9 @@ export default function LogsChat() {
     },
   });
 
+  // Get unique users for filter
+  const uniqueUsers = [...new Set(messages.map(m => m.sender_nome))].sort();
+
   // Filter messages
   const filteredMessages = messages.filter(msg => {
     const matchesSearch = 
@@ -109,6 +113,7 @@ export default function LogsChat() {
     
     const matchesNivel = nivelFilter === 'todos' || msg.sender_nivel === nivelFilter;
     const matchesTipo = tipoFilter === 'todos' || msg.conversation?.tipo === tipoFilter;
+    const matchesUsuario = usuarioFilter === 'todos' || msg.sender_nome === usuarioFilter;
     
     // Date filter
     let matchesDate = true;
@@ -126,7 +131,7 @@ export default function LogsChat() {
       }
     }
     
-    return matchesSearch && matchesNivel && matchesTipo && matchesDate;
+    return matchesSearch && matchesNivel && matchesTipo && matchesDate && matchesUsuario;
   });
 
   const clearDateFilter = () => {
@@ -232,13 +237,24 @@ export default function LogsChat() {
               </SelectContent>
             </Select>
             <Select value={tipoFilter} onValueChange={setTipoFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectTrigger className="w-full sm:w-[150px]">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos os tipos</SelectItem>
                 <SelectItem value="individual">Individual</SelectItem>
                 <SelectItem value="grupo">Grupo</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={usuarioFilter} onValueChange={setUsuarioFilter}>
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="Usuário" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os usuários</SelectItem>
+                {uniqueUsers.map(user => (
+                  <SelectItem key={user} value={user}>{user}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Popover>
