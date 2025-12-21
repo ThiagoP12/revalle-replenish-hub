@@ -115,7 +115,7 @@ export function Sidebar() {
         </div>
 
         {/* Navigation with Logout at the end */}
-        <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
+        <nav className="flex-1 sidebar-scroll p-3 space-y-0.5">
           {filteredNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
