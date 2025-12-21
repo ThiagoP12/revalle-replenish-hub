@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Unidade } from '@/types';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/button';
@@ -438,6 +438,44 @@ export default function Unidades() {
               </tr>
             ))}
           </tbody>
+          <tfoot>
+            <tr className="bg-muted/50 font-semibold border-t-2 border-border">
+              <td colSpan={3} className="p-2.5 text-xs font-bold">
+                TOTAL
+              </td>
+              <td className="p-2.5 text-center">
+                {isLoadingMotoristas ? (
+                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground inline" />
+                ) : (
+                  <span className="inline-flex items-center gap-1 bg-primary/10 text-primary px-1.5 py-0.5 rounded-full text-[10px] font-medium">
+                    <Users size={12} />
+                    {motoristas.length}
+                  </span>
+                )}
+              </td>
+              <td className="p-2.5 text-center">
+                {isLoadingCounts ? (
+                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground inline" />
+                ) : (
+                  <span className="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-full text-[10px] font-medium">
+                    <Store size={12} />
+                    {Object.values(clientesPorUnidade).reduce((acc, val) => acc + val, 0)}
+                  </span>
+                )}
+              </td>
+              <td className="p-2.5 text-center">
+                {isLoadingCounts ? (
+                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground inline" />
+                ) : (
+                  <span className="inline-flex items-center gap-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded-full text-[10px] font-medium">
+                    <FileText size={12} />
+                    {Object.values(protocolosPorUnidade).reduce((acc, val) => acc + val, 0)}
+                  </span>
+                )}
+              </td>
+              <td></td>
+            </tr>
+          </tfoot>
         </table>
         
         {filteredUnidades.length === 0 && (
