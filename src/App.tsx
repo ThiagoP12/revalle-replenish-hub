@@ -12,6 +12,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Protocolos from "./pages/Protocolos";
 import Motoristas from "./pages/Motoristas";
+import Clientes from "./pages/Clientes";
 import Unidades from "./pages/Unidades";
 import Usuarios from "./pages/Usuarios";
 import Configuracoes from "./pages/Configuracoes";
@@ -47,6 +48,14 @@ const App = () => (
                     element={
                       <ProtectedRoute allowedRoles={['admin', 'distribuicao']}>
                         <Motoristas />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/clientes" 
+                    element={
+                      <ProtectedRoute allowedRoles={['admin', 'distribuicao']}>
+                        <Clientes />
                       </ProtectedRoute>
                     } 
                   />
