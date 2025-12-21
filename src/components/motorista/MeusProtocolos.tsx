@@ -34,6 +34,45 @@ export function MeusProtocolos({ motorista }: MeusProtocolosProps) {
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filtroStatus, setFiltroStatus] = useState<'abertos' | 'em_andamento' | 'encerrados'>('abertos');
+  const [contadores, setContadores] = useState({ abertos: 0, em_andamento: 0, encerrados: 0 });
+  const [loadingContadores, setLoadingContadores] = useState(true);
+
+  // Buscar contadores de todos os status
+  const fetchContadores = async () => {
+    setLoadingContadores(true);
+    try {
+      const [abertosRes, emAndamentoRes, encerradosRes] = await Promise.all([
+        supabase
+          .from('protocolos')
+          .select('id', { count: 'exact', head: true })
+          .eq('motorista_codigo', motorista.codigo)
+          .eq('status', 'aberto')
+          .or('oculto.is.null,oculto.eq.false'),
+        supabase
+          .from('protocolos')
+          .select('id', { count: 'exact', head: true })
+          .eq('motorista_codigo', motorista.codigo)
+          .eq('status', 'em_andamento')
+          .or('oculto.is.null,oculto.eq.false'),
+        supabase
+          .from('protocolos')
+          .select('id', { count: 'exact', head: true })
+          .eq('motorista_codigo', motorista.codigo)
+          .eq('status', 'encerrado')
+          .or('oculto.is.null,oculto.eq.false'),
+      ]);
+
+      setContadores({
+        abertos: abertosRes.count || 0,
+        em_andamento: emAndamentoRes.count || 0,
+        encerrados: encerradosRes.count || 0,
+      });
+    } catch (err) {
+      console.error('Erro ao buscar contadores:', err);
+    } finally {
+      setLoadingContadores(false);
+    }
+  };
 
   const fetchProtocolos = async () => {
     setIsLoading(true);
@@ -69,6 +108,10 @@ export function MeusProtocolos({ motorista }: MeusProtocolosProps) {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchContadores();
+  }, [motorista.codigo]);
 
   useEffect(() => {
     fetchProtocolos();
@@ -119,12 +162,30 @@ export function MeusProtocolos({ motorista }: MeusProtocolosProps) {
   if (isLoading) {
     return (
       <div className="space-y-3">
+        {/* Skeleton dos filtros */}
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-8 w-28 shrink-0 rounded-md" />
+          ))}
+        </div>
+        {/* Skeleton do contador */}
+        <div className="flex items-center justify-between mb-2">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-8 w-8 rounded-md" />
+        </div>
+        {/* Skeleton dos cards */}
         {[1, 2, 3].map((i) => (
           <Card key={i} className="p-4">
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-3.5 w-24" />
-              <Skeleton className="h-5 w-16" />
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+              <div className="flex flex-col items-end gap-2">
+                <Skeleton className="h-5 w-16 rounded-full" />
+                <Skeleton className="h-4 w-4" />
+              </div>
             </div>
           </Card>
         ))}
@@ -245,7 +306,7 @@ export function MeusProtocolos({ motorista }: MeusProtocolosProps) {
 
   return (
     <div className="space-y-3">
-      {/* Filtros de Status */}
+      {/* Filtros de Status com contadores */}
       <div className="flex gap-2 overflow-x-auto pb-1">
         <Button
           variant={filtroStatus === 'abertos' ? 'default' : 'outline'}
@@ -255,6 +316,11 @@ export function MeusProtocolos({ motorista }: MeusProtocolosProps) {
         >
           <Clock className="w-3 h-3 mr-1" />
           Abertos
+          {!loadingContadores && (
+            <span className="ml-1.5 bg-background/20 px-1.5 py-0.5 rounded-full text-[10px] font-medium">
+              {contadores.abertos}
+            </span>
+          )}
         </Button>
         <Button
           variant={filtroStatus === 'em_andamento' ? 'default' : 'outline'}
@@ -264,6 +330,11 @@ export function MeusProtocolos({ motorista }: MeusProtocolosProps) {
         >
           <AlertCircle className="w-3 h-3 mr-1" />
           Em Atendimento
+          {!loadingContadores && (
+            <span className="ml-1.5 bg-background/20 px-1.5 py-0.5 rounded-full text-[10px] font-medium">
+              {contadores.em_andamento}
+            </span>
+          )}
         </Button>
         <Button
           variant={filtroStatus === 'encerrados' ? 'default' : 'outline'}
@@ -273,6 +344,11 @@ export function MeusProtocolos({ motorista }: MeusProtocolosProps) {
         >
           <CheckCircle className="w-3 h-3 mr-1" />
           Encerrados
+          {!loadingContadores && (
+            <span className="ml-1.5 bg-background/20 px-1.5 py-0.5 rounded-full text-[10px] font-medium">
+              {contadores.encerrados}
+            </span>
+          )}
         </Button>
       </div>
       
@@ -280,7 +356,15 @@ export function MeusProtocolos({ motorista }: MeusProtocolosProps) {
         <p className="text-sm text-muted-foreground">
           {protocolos.length} protocolo{protocolos.length !== 1 ? 's' : ''} encontrado{protocolos.length !== 1 ? 's' : ''}
         </p>
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={fetchProtocolos}>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="h-8 w-8 p-0" 
+          onClick={() => {
+            fetchProtocolos();
+            fetchContadores();
+          }}
+        >
           <RefreshCw className="w-4 h-4" />
         </Button>
       </div>
