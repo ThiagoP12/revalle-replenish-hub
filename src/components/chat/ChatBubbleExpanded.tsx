@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Users, MessageSquare, Paperclip, FileText } from 'lucide-react';
+import { ArrowLeft, Send, Users, MessageSquare, Paperclip, FileText, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { useChatDB, ChatConversation } from '@/hooks/useChatDB';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { format, isToday, isYesterday } from 'date-fns';
@@ -23,7 +24,9 @@ interface ChatBubbleExpandedProps {
 export function ChatBubbleExpanded({ onClose, protocoloId, protocoloNumero, initialMessage, targetUser }: ChatBubbleExpandedProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { 
+  const queryClient = useQueryClient();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const {
     conversations, 
     isLoadingConversations, 
     useConversationMessages,
@@ -130,6 +133,14 @@ export function ChatBubbleExpanded({ onClose, protocoloId, protocoloNumero, init
     } catch (error) {
       console.error('Erro ao entrar no grupo:', error);
     }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ['protocolos'] });
+    await queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
+    await queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
+    setTimeout(() => setIsRefreshing(false), 500);
   };
 
   // Conversation List View
@@ -244,6 +255,15 @@ export function ChatBubbleExpanded({ onClose, protocoloId, protocoloNumero, init
             <p className="text-xs text-muted-foreground">{selectedConversation.participants.length} participantes</p>
           )}
         </div>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-8 w-8" 
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+        >
+          <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+        </Button>
       </div>
 
       {/* Messages */}
