@@ -51,7 +51,7 @@ export default function Unidades() {
         'PE': ['RPE', 'REVALLE PETROLINA'],
         'SE': ['RSE', 'REVALLE SERRINHA'],
         'PA': ['RPA', 'REVALLE PAULO AFONSO'],
-        'JZ': ['RJU', 'REVALLE JUAZEIRO'],  // JZ = Juazeiro
+        'JZ': ['RJZ', 'REVALLE JUAZEIRO'],  // JZ = Juazeiro
         'BF': ['RBO', 'REVALLE BONFIM'],     // BF = Bonfim
         'RP': ['RNE', 'REVALLE RIBEIRA DO POMBAL'], // RP = Ribeira do Pombal
       };
