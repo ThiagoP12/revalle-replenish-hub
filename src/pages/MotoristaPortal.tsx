@@ -57,6 +57,27 @@ interface TouchedFields {
   whatsappContato: boolean;
   produtos: boolean[];
 }
+// Função para formatar WhatsApp
+const formatWhatsApp = (value: string): string => {
+  const numbers = value.replace(/\D/g, '');
+  if (numbers.length <= 2) return numbers;
+  if (numbers.length <= 7) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+  if (numbers.length <= 11) return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
+  return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
+};
+
+// Função para validar e-mail
+const validateEmail = (email: string): boolean => {
+  if (!email.trim()) return true; // Campo opcional
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email.trim());
+};
+
+// Função para validar WhatsApp (mínimo 10 dígitos)
+const validateWhatsApp = (whatsapp: string): boolean => {
+  const numbers = whatsapp.replace(/\D/g, '');
+  return numbers.length >= 10 && numbers.length <= 11;
+};
 
 const causasPorTipo: Record<string, string[]> = {
   inversao: ['ERRO DE CARREGAMENTO', 'ERRO DE ENTREGA'],
@@ -333,8 +354,12 @@ export default function MotoristaPortal() {
       toast({ title: 'Erro', description: 'Selecione a causa', variant: 'destructive' });
       return;
     }
-    if (!whatsappContato.trim()) {
-      toast({ title: 'Erro', description: 'Preencha o WhatsApp para contato', variant: 'destructive' });
+    if (!whatsappContato.trim() || !validateWhatsApp(whatsappContato)) {
+      toast({ title: 'Erro', description: 'WhatsApp inválido. Digite um número completo.', variant: 'destructive' });
+      return;
+    }
+    if (emailContato.trim() && !validateEmail(emailContato)) {
+      toast({ title: 'Erro', description: 'E-mail inválido. Verifique o formato.', variant: 'destructive' });
       return;
     }
 
@@ -1080,20 +1105,21 @@ export default function MotoristaPortal() {
                       <Input
                         id="whatsappContato"
                         value={whatsappContato}
-                        onChange={(e) => setWhatsappContato(e.target.value)}
+                        onChange={(e) => setWhatsappContato(formatWhatsApp(e.target.value))}
                         onBlur={() => handleBlur('whatsappContato')}
                         placeholder="(00) 00000-0000"
+                        maxLength={16}
                         className={cn(
                           "h-9 text-sm",
-                          touched.whatsappContato && whatsappContato.trim() && 'border-green-500',
-                          touched.whatsappContato && !whatsappContato.trim() && 'border-red-500'
+                          touched.whatsappContato && validateWhatsApp(whatsappContato) && 'border-green-500',
+                          touched.whatsappContato && !validateWhatsApp(whatsappContato) && 'border-red-500'
                         )}
                         inputMode="tel"
                       />
-                      {touched.whatsappContato && !whatsappContato.trim() && (
+                      {touched.whatsappContato && !validateWhatsApp(whatsappContato) && (
                         <p className="text-[10px] text-red-500 flex items-center gap-0.5">
                           <AlertCircle size={10} />
-                          WhatsApp obrigatório
+                          WhatsApp inválido
                         </p>
                       )}
                     </div>
@@ -1107,9 +1133,19 @@ export default function MotoristaPortal() {
                         value={emailContato}
                         onChange={(e) => setEmailContato(e.target.value)}
                         placeholder="email@exemplo.com"
-                        className="h-9 text-sm"
+                        className={cn(
+                          "h-9 text-sm",
+                          emailContato.trim() && validateEmail(emailContato) && 'border-green-500',
+                          emailContato.trim() && !validateEmail(emailContato) && 'border-red-500'
+                        )}
                         inputMode="email"
                       />
+                      {emailContato.trim() && !validateEmail(emailContato) && (
+                        <p className="text-[10px] text-red-500 flex items-center gap-0.5">
+                          <AlertCircle size={10} />
+                          E-mail inválido
+                        </p>
+                      )}
                     </div>
               </div>
             </div>

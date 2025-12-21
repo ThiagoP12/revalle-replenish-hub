@@ -33,18 +33,27 @@ export function MeusProtocolos({ motorista }: MeusProtocolosProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [filtroStatus, setFiltroStatus] = useState<'todos' | 'abertos' | 'encerrados'>('abertos');
 
   const fetchProtocolos = async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const { data, error: fetchError } = await supabase
+      let query = supabase
         .from('protocolos')
         .select('id, numero, data, hora, status, tipo_reposicao, causa, codigo_pdv, nota_fiscal, produtos, created_at')
         .eq('motorista_codigo', motorista.codigo)
-        .or('oculto.is.null,oculto.eq.false')
-        .neq('status', 'encerrado')
+        .or('oculto.is.null,oculto.eq.false');
+      
+      // Aplicar filtro de status
+      if (filtroStatus === 'abertos') {
+        query = query.neq('status', 'encerrado');
+      } else if (filtroStatus === 'encerrados') {
+        query = query.eq('status', 'encerrado');
+      }
+      
+      const { data, error: fetchError } = await query
         .order('created_at', { ascending: false })
         .limit(50);
 
@@ -61,7 +70,7 @@ export function MeusProtocolos({ motorista }: MeusProtocolosProps) {
 
   useEffect(() => {
     fetchProtocolos();
-  }, [motorista.codigo]);
+  }, [motorista.codigo, filtroStatus]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -145,6 +154,36 @@ export function MeusProtocolos({ motorista }: MeusProtocolosProps) {
 
   return (
     <div className="space-y-3">
+      {/* Filtros de Status */}
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        <Button
+          variant={filtroStatus === 'todos' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setFiltroStatus('todos')}
+          className="shrink-0 h-8 text-xs"
+        >
+          Todos
+        </Button>
+        <Button
+          variant={filtroStatus === 'abertos' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setFiltroStatus('abertos')}
+          className="shrink-0 h-8 text-xs"
+        >
+          <Clock className="w-3 h-3 mr-1" />
+          Abertos
+        </Button>
+        <Button
+          variant={filtroStatus === 'encerrados' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setFiltroStatus('encerrados')}
+          className="shrink-0 h-8 text-xs"
+        >
+          <CheckCircle className="w-3 h-3 mr-1" />
+          Encerrados
+        </Button>
+      </div>
+      
       <div className="flex items-center justify-between mb-2">
         <p className="text-sm text-muted-foreground">
           {protocolos.length} protocolo{protocolos.length !== 1 ? 's' : ''} encontrado{protocolos.length !== 1 ? 's' : ''}
