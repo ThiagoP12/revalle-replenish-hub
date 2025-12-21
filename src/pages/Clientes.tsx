@@ -18,12 +18,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { MapPin, Hash, Store, Loader2, Download, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { ImportarPdvsDialog } from '@/components/ImportarPdvsDialog';
-
 // Mapeamento de códigos para nomes de unidades
 const UNIDADES_MAP: { codigo: string; nome: string }[] = [
   { codigo: 'JZ', nome: 'Revalle Juazeiro' },
@@ -79,6 +88,11 @@ export default function Clientes() {
     cnpj: '',
     unidade: '',
   });
+
+  // Delete confirmation states
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletingPdvId, setDeletingPdvId] = useState<string | null>(null);
+  const [isDeleteMultipleDialogOpen, setIsDeleteMultipleDialogOpen] = useState(false);
 
   // Fetch PDVs
   const fetchPdvs = useCallback(async () => {
@@ -164,32 +178,48 @@ export default function Clientes() {
   };
 
   // Delete handlers
-  const handleDelete = async (id: string) => {
+  const openDeleteConfirmation = (id: string) => {
+    setDeletingPdvId(id);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingPdvId) return;
+    
     try {
-      const { error } = await supabase.from('pdvs').delete().eq('id', id);
+      const { error } = await supabase.from('pdvs').delete().eq('id', deletingPdvId);
       if (error) throw error;
       toast.success('Cliente excluído com sucesso!');
       setRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error('Erro ao excluir:', error);
       toast.error('Erro ao excluir cliente');
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setDeletingPdvId(null);
     }
   };
 
-  const handleDeleteSelected = async () => {
+  const openDeleteMultipleConfirmation = () => {
     if (selectedIds.size === 0) return;
-    
+    setIsDeleteMultipleDialogOpen(true);
+  };
+
+  const handleConfirmDeleteMultiple = async () => {
     try {
       const promises = Array.from(selectedIds).map(id => 
         supabase.from('pdvs').delete().eq('id', id)
       );
       await Promise.all(promises);
+      const count = selectedIds.size;
       setSelectedIds(new Set());
-      toast.success(`${selectedIds.size} clientes excluídos com sucesso!`);
+      toast.success(`${count} clientes excluídos com sucesso!`);
       setRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error('Erro ao excluir:', error);
       toast.error('Erro ao excluir clientes');
+    } finally {
+      setIsDeleteMultipleDialogOpen(false);
     }
   };
 
@@ -331,7 +361,7 @@ export default function Clientes() {
             <Button
               variant="destructive"
               size="sm"
-              onClick={handleDeleteSelected}
+              onClick={openDeleteMultipleConfirmation}
             >
               <Trash2 size={16} className="mr-2" />
               Excluir selecionados
@@ -415,7 +445,7 @@ export default function Clientes() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDelete(pdv.id)}
+                            onClick={() => openDeleteConfirmation(pdv.id)}
                             className="text-destructive hover:text-destructive/80 h-6 w-6 p-0"
                           >
                             <Trash2 size={14} />
@@ -533,6 +563,42 @@ export default function Clientes() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Multiple Confirmation Dialog */}
+      <AlertDialog open={isDeleteMultipleDialogOpen} onOpenChange={setIsDeleteMultipleDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão em massa</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir {selectedIds.size} cliente(s)? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDeleteMultiple} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir {selectedIds.size} cliente(s)
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
