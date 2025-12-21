@@ -66,7 +66,7 @@ export type Database = {
           endereco: string | null
           id: string
           nome: string
-          unidade: string | null
+          unidade: string
         }
         Insert: {
           bairro?: string | null
@@ -77,7 +77,7 @@ export type Database = {
           endereco?: string | null
           id?: string
           nome: string
-          unidade?: string | null
+          unidade: string
         }
         Update: {
           bairro?: string | null
@@ -88,7 +88,7 @@ export type Database = {
           endereco?: string | null
           id?: string
           nome?: string
-          unidade?: string | null
+          unidade?: string
         }
         Relationships: []
       }
