@@ -44,19 +44,38 @@ export default function Unidades() {
         .from('pdvs')
         .select('unidade');
       
-      const pdvCounts: Record<string, number> = {};
-      pdvsData?.forEach(pdv => {
-        pdvCounts[pdv.unidade] = (pdvCounts[pdv.unidade] || 0) + 1;
+      const pdvCountsRaw: Record<string, number> = {};
+      pdvsData?.forEach((pdv) => {
+        const key = (pdv.unidade || '').trim().toUpperCase();
+        if (!key) return;
+        pdvCountsRaw[key] = (pdvCountsRaw[key] || 0) + 1;
       });
-      setClientesPorUnidade(pdvCounts);
+
+      // Mapeia a contagem para o nome da unidade (pois a tabela de PDVs usa siglas como AL/PE/JZ)
+      const pdvCountsByNome: Record<string, number> = {};
+      unidades.forEach((u) => {
+        const codigo = (u.codigo || '').trim().toUpperCase();
+        const codigoSemPrefixo = codigo.startsWith('R') ? codigo.slice(1) : codigo;
+        const aliases = [
+          (u.nome || '').trim().toUpperCase(),
+          codigo,
+          codigoSemPrefixo,
+        ].filter(Boolean);
+
+        const count = aliases.reduce<number>((acc, alias) => {
+          return acc + (pdvCountsRaw[alias] || 0);
+        }, 0);
+
+        pdvCountsByNome[u.nome] = count;
+      });
+
+      setClientesPorUnidade(pdvCountsByNome);
 
       // Buscar contagem de protocolos por unidade com filtro de data
-      let query = supabase
+      const { data: protocolosData } = await supabase
         .from('protocolos')
         .select('motorista_unidade, data');
-      
-      const { data: protocolosData } = await query;
-      
+
       const protocoloCounts: Record<string, number> = {};
       protocolosData?.forEach(p => {
         if (p.motorista_unidade) {
@@ -83,7 +102,7 @@ export default function Unidades() {
     } finally {
       setIsLoadingCounts(false);
     }
-  }, [dataInicio, dataFim]);
+  }, [dataInicio, dataFim, unidades]);
 
   useEffect(() => {
     fetchCounts();
