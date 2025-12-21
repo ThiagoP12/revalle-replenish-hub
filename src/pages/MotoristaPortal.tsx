@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { generateUUID } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -36,6 +36,7 @@ import { ProdutoAutocomplete } from '@/components/ProdutoAutocomplete';
 import { PdvAutocomplete } from '@/components/PdvAutocomplete';
 import { MeusProtocolos } from '@/components/motorista/MeusProtocolos';
 import { MotoristaHeader } from '@/components/motorista/MotoristaHeader';
+import CameraCapture from '@/components/CameraCapture';
 
 interface ProdutoForm {
   produto: string;
@@ -118,9 +119,9 @@ export default function MotoristaPortal() {
   const [fotoLoteProduto, setFotoLoteProduto] = useState<string | null>(null);
   const [fotoAvaria, setFotoAvaria] = useState<string | null>(null);
 
-  const fotoMotoristaPdvRef = useRef<HTMLInputElement>(null);
-  const fotoLoteProdutoRef = useRef<HTMLInputElement>(null);
-  const fotoAvariaRef = useRef<HTMLInputElement>(null);
+  // Camera modal state
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraTarget, setCameraTarget] = useState<'fotoMotoristaPdv' | 'fotoLoteProduto' | 'fotoAvaria' | null>(null);
 
   // Sincronizar protocolos pendentes quando online
   useEffect(() => {
@@ -520,18 +521,61 @@ export default function MotoristaPortal() {
     }
   };
 
+  // Open camera for a specific field
+  const openCamera = useCallback((field: 'fotoMotoristaPdv' | 'fotoLoteProduto' | 'fotoAvaria') => {
+    setCameraTarget(field);
+    setCameraOpen(true);
+  }, []);
+
+  // Handle camera capture
+  const handleCameraCapture = useCallback(async (imageDataUrl: string) => {
+    if (!cameraTarget) return;
+    
+    setIsCompressing(true);
+    try {
+      // Compress the captured image
+      const compressedImage = await compressImage(imageDataUrl);
+      
+      // Set the photo based on the target field
+      switch (cameraTarget) {
+        case 'fotoMotoristaPdv':
+          setFotoMotoristaPdv(compressedImage);
+          break;
+        case 'fotoLoteProduto':
+          setFotoLoteProduto(compressedImage);
+          break;
+        case 'fotoAvaria':
+          setFotoAvaria(compressedImage);
+          break;
+      }
+      
+      toast({
+        title: 'Foto capturada',
+        description: 'Imagem salva com sucesso!',
+      });
+    } catch (error) {
+      console.error('Error compressing image:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao processar a imagem.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsCompressing(false);
+      setCameraTarget(null);
+    }
+  }, [cameraTarget]);
+
   // Photo upload card component
   const PhotoUploadCard = ({
     label,
     photo,
     setPhoto,
-    inputRef,
     field,
   }: {
     label: string;
     photo: string | null;
     setPhoto: (value: string | null) => void;
-    inputRef: React.RefObject<HTMLInputElement>;
     field: 'fotoMotoristaPdv' | 'fotoLoteProduto' | 'fotoAvaria';
   }) => {
     const hasPhoto = !!photo;
@@ -562,25 +606,13 @@ export default function MotoristaPortal() {
             </Button>
           )}
         </div>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={(e) => {
-            handleFotoUpload(e, setPhoto);
-          }}
-        />
         {photo ? (
           <div className="relative aspect-[4/3] rounded-md overflow-hidden border border-border">
             <img src={photo} alt={label} className="w-full h-full object-cover" />
           </div>
         ) : (
           <button
-            onClick={() => {
-              inputRef.current?.click();
-            }}
+            onClick={() => openCamera(field)}
             disabled={isCompressing}
             className="w-full aspect-[4/3] border-2 border-dashed rounded-md flex flex-col items-center justify-center gap-3 transition-colors border-primary/40 bg-primary/5 hover:bg-primary/10 active:bg-primary/15 disabled:opacity-50"
           >
@@ -644,7 +676,25 @@ export default function MotoristaPortal() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-secondary/10 safe-area-inset">
+    <>
+      {/* Camera Capture Modal */}
+      <CameraCapture
+        isOpen={cameraOpen}
+        onClose={() => {
+          setCameraOpen(false);
+          setCameraTarget(null);
+        }}
+        onCapture={handleCameraCapture}
+        title={
+          cameraTarget === 'fotoMotoristaPdv' 
+            ? 'Motorista no PDV' 
+            : cameraTarget === 'fotoLoteProduto' 
+              ? 'Lote do Produto' 
+              : 'Foto da Avaria'
+        }
+      />
+      
+      <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-secondary/10 safe-area-inset">
       {/* Header com nome, código e unidade */}
       <MotoristaHeader 
         motorista={motorista}
@@ -983,14 +1033,12 @@ export default function MotoristaPortal() {
                         label="Motorista no PDV"
                         photo={fotoMotoristaPdv}
                         setPhoto={setFotoMotoristaPdv}
-                        inputRef={fotoMotoristaPdvRef}
                         field="fotoMotoristaPdv"
                       />
                       <PhotoUploadCard
                         label="Lote do Produto"
                         photo={fotoLoteProduto}
                         setPhoto={setFotoLoteProduto}
-                        inputRef={fotoLoteProdutoRef}
                         field="fotoLoteProduto"
                       />
                       {tipoReposicao === 'avaria' && (
@@ -998,7 +1046,6 @@ export default function MotoristaPortal() {
                           label="Foto da Avaria"
                           photo={fotoAvaria}
                           setPhoto={setFotoAvaria}
-                          inputRef={fotoAvariaRef}
                           field="fotoAvaria"
                         />
                       )}
@@ -1119,6 +1166,7 @@ export default function MotoristaPortal() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

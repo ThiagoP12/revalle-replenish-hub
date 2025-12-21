@@ -1,18 +1,17 @@
 /**
  * Comprime uma imagem antes do envio
- * @param file Arquivo de imagem
+ * @param input Arquivo de imagem ou data URL (base64)
  * @param maxWidth Largura máxima (default: 1200px)
  * @param quality Qualidade da compressão (0-1, default: 0.7)
  * @returns Promise com a imagem comprimida em base64
  */
 export async function compressImage(
-  file: File,
+  input: File | string,
   maxWidth: number = 1200,
   quality: number = 0.7
 ): Promise<string> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
+    const processImage = (imageDataUrl: string) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
@@ -41,9 +40,22 @@ export async function compressImage(
         resolve(compressedBase64);
       };
       img.onerror = () => reject(new Error('Erro ao carregar imagem'));
-      img.src = event.target?.result as string;
+      img.src = imageDataUrl;
     };
-    reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
-    reader.readAsDataURL(file);
+
+    // Check if input is a File or a string (data URL)
+    if (typeof input === 'string') {
+      // Already a data URL, process directly
+      processImage(input);
+    } else {
+      // It's a File, read it first
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        processImage(dataUrl);
+      };
+      reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
+      reader.readAsDataURL(input);
+    }
   });
 }
