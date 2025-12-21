@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Search, MessageSquare } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, MessageSquare, AlertCircle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -10,10 +10,11 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
-// Mock users - mesmos do AuthContext
-const allUsers = [
+// Mock users fixos
+const mockSystemUsers = [
   { id: '1', nome: 'Administrador', nivel: 'admin', unidade: 'Todas' },
   { id: '2', nome: 'Distribuição Juazeiro', nivel: 'distribuicao', unidade: 'Revalle Juazeiro' },
   { id: '3', nome: 'Conferente Juazeiro', nivel: 'conferente', unidade: 'Revalle Juazeiro' },
@@ -28,13 +29,56 @@ interface NewConversationModalProps {
 export function NewConversationModal({ open, onOpenChange, onSelectUser }: NewConversationModalProps) {
   const { user } = useAuth();
   const [search, setSearch] = useState('');
+  const [motoristas, setMotoristas] = useState<{ id: string; nome: string; nivel: string; unidade: string }[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const filteredUsers = allUsers
+  // Buscar motoristas da mesma unidade
+  useEffect(() => {
+    const fetchMotoristas = async () => {
+      if (!user || !open) return;
+      setIsLoading(true);
+      
+      try {
+        let query = supabase.from('motoristas').select('id, nome, unidade');
+        
+        // Se não for admin (unidade "Todas"), filtrar pela unidade do usuário
+        if (user.unidade !== 'Todas') {
+          query = query.eq('unidade', user.unidade);
+        }
+        
+        const { data, error } = await query;
+        if (error) throw error;
+        
+        setMotoristas((data || []).map(m => ({
+          id: m.id,
+          nome: m.nome,
+          nivel: 'motorista',
+          unidade: m.unidade,
+        })));
+      } catch (error) {
+        console.error('Erro ao buscar motoristas:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMotoristas();
+  }, [user, open]);
+
+  // Combinar usuários do sistema + motoristas, filtrados por unidade
+  const allAvailableUsers = [...mockSystemUsers, ...motoristas]
     .filter(u => u.id !== user?.id)
-    .filter(u => 
-      u.nome.toLowerCase().includes(search.toLowerCase()) ||
-      u.unidade.toLowerCase().includes(search.toLowerCase())
-    );
+    .filter(u => {
+      // Admin pode ver todos
+      if (user?.unidade === 'Todas') return true;
+      // Outros só veem da mesma unidade ou admins
+      return u.unidade === user?.unidade || u.unidade === 'Todas';
+    });
+
+  const filteredUsers = allAvailableUsers.filter(u => 
+    u.nome.toLowerCase().includes(search.toLowerCase()) ||
+    u.unidade.toLowerCase().includes(search.toLowerCase())
+  );
 
   const getRoleBadgeColor = (nivel: string) => {
     switch (nivel) {
@@ -44,12 +88,24 @@ export function NewConversationModal({ open, onOpenChange, onSelectUser }: NewCo
         return 'bg-secondary text-secondary-foreground';
       case 'conferente':
         return 'bg-muted text-muted-foreground';
+      case 'motorista':
+        return 'bg-accent text-accent-foreground';
       default:
         return 'bg-muted text-muted-foreground';
     }
   };
 
-  const handleSelectUser = (selectedUser: typeof allUsers[0]) => {
+  const getRoleLabel = (nivel: string) => {
+    switch (nivel) {
+      case 'admin': return 'Admin';
+      case 'distribuicao': return 'Distribuição';
+      case 'conferente': return 'Conferente';
+      case 'motorista': return 'Motorista';
+      default: return nivel;
+    }
+  };
+
+  const handleSelectUser = (selectedUser: typeof allAvailableUsers[0]) => {
     onSelectUser(selectedUser);
     onOpenChange(false);
     setSearch('');
@@ -65,6 +121,12 @@ export function NewConversationModal({ open, onOpenChange, onSelectUser }: NewCo
           </DialogTitle>
         </DialogHeader>
 
+        <p className="text-sm text-muted-foreground">
+          {user?.unidade === 'Todas' 
+            ? 'Você pode conversar com qualquer usuário.' 
+            : `Usuários disponíveis da unidade: ${user?.unidade}`}
+        </p>
+
         <div className="space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -77,10 +139,13 @@ export function NewConversationModal({ open, onOpenChange, onSelectUser }: NewCo
           </div>
 
           <ScrollArea className="h-64">
-            {filteredUsers.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                Nenhum usuário encontrado
-              </p>
+            {isLoading ? (
+              <p className="text-center text-muted-foreground py-8">Carregando usuários...</p>
+            ) : filteredUsers.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8 space-y-2">
+                <AlertCircle className="h-8 w-8 mx-auto opacity-50" />
+                <p>Nenhum usuário encontrado na sua unidade</p>
+              </div>
             ) : (
               <div className="space-y-2">
                 {filteredUsers.map((u) => (
@@ -101,9 +166,7 @@ export function NewConversationModal({ open, onOpenChange, onSelectUser }: NewCo
                           variant="secondary" 
                           className={cn("text-xs", getRoleBadgeColor(u.nivel))}
                         >
-                          {u.nivel === 'admin' ? 'Admin' : 
-                           u.nivel === 'distribuicao' ? 'Distribuição' : 
-                           'Conferente'}
+                          {getRoleLabel(u.nivel)}
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">{u.unidade}</p>
