@@ -22,6 +22,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Plus, Pencil, Trash2, MapPin, Hash, Truck, Users, Building, Loader2 } from 'lucide-react';
 import { useMotoristasDB } from '@/hooks/useMotoristasDB';
 import { useAuth } from '@/contexts/AuthContext';
@@ -50,6 +60,11 @@ export default function Motoristas() {
   
   // Selection states
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  
+  // Delete confirmation states
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletingMotoristaId, setDeletingMotoristaId] = useState<string | null>(null);
+  const [isDeleteMultipleDialogOpen, setIsDeleteMultipleDialogOpen] = useState(false);
 
   // Filtrar motoristas por unidade do usuário (exceto admin)
   const motoristasFiltradosPorUnidade = isAdmin 
@@ -102,13 +117,35 @@ export default function Motoristas() {
     setSelectedIds(newSelected);
   };
 
-  const handleDeleteSelected = async () => {
+  // Open delete confirmation dialog for single motorista
+  const openDeleteConfirmation = (id: string) => {
+    setDeletingMotoristaId(id);
+    setIsDeleteDialogOpen(true);
+  };
+
+  // Confirm single delete
+  const handleConfirmDelete = async () => {
+    if (!deletingMotoristaId) return;
+    await deleteMotorista(deletingMotoristaId);
+    toast.success('Motorista excluído com sucesso!');
+    setIsDeleteDialogOpen(false);
+    setDeletingMotoristaId(null);
+  };
+
+  // Open delete confirmation dialog for multiple motoristas
+  const openDeleteMultipleConfirmation = () => {
     if (selectedIds.size === 0) return;
-    
+    setIsDeleteMultipleDialogOpen(true);
+  };
+
+  // Confirm multiple delete
+  const handleConfirmDeleteMultiple = async () => {
+    const count = selectedIds.size;
     const promises = Array.from(selectedIds).map(id => deleteMotorista(id));
     await Promise.all(promises);
     setSelectedIds(new Set());
-    toast.success(`${selectedIds.size} motoristas excluídos com sucesso!`);
+    toast.success(`${count} motorista(s) excluído(s) com sucesso!`);
+    setIsDeleteMultipleDialogOpen(false);
   };
 
   const resetForm = () => {
@@ -151,9 +188,6 @@ export default function Motoristas() {
     resetForm();
   };
 
-  const handleDelete = async (id: string) => {
-    await deleteMotorista(id);
-  };
 
   const handleImportCSV = async (importedMotoristas: Motorista[]) => {
     await importMotoristas(importedMotoristas);
@@ -346,7 +380,7 @@ export default function Motoristas() {
             <Button
               variant="destructive"
               size="sm"
-              onClick={handleDeleteSelected}
+              onClick={openDeleteMultipleConfirmation}
             >
               <Trash2 size={16} className="mr-2" />
               Excluir selecionados
@@ -441,7 +475,7 @@ export default function Motoristas() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDelete(motorista.id)}
+                          onClick={() => openDeleteConfirmation(motorista.id)}
                           className="text-destructive hover:text-destructive/80 h-6 w-6 p-0"
                         >
                           <Trash2 size={14} />
@@ -471,6 +505,48 @@ export default function Motoristas() {
           </>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este motorista? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmDelete} 
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Multiple Confirmation Dialog */}
+      <AlertDialog open={isDeleteMultipleDialogOpen} onOpenChange={setIsDeleteMultipleDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão em massa</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir {selectedIds.size} motorista(s)? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmDeleteMultiple} 
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir {selectedIds.size} motorista(s)
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
