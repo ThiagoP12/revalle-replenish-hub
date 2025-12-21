@@ -66,6 +66,42 @@ const formatCNPJ = (value: string): string => {
     .replace(/(\d{4})(\d)/, '$1-$2');
 };
 
+// Função para validar CNPJ
+const validateCNPJ = (cnpj: string): boolean => {
+  // Remove caracteres não numéricos
+  const numbers = cnpj.replace(/\D/g, '');
+  
+  // CNPJ deve ter 14 dígitos
+  if (numbers.length !== 14) return false;
+  
+  // Verifica se todos os dígitos são iguais (ex: 00.000.000/0000-00)
+  if (/^(\d)\1+$/.test(numbers)) return false;
+  
+  // Calcula o primeiro dígito verificador
+  let sum = 0;
+  let weight = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  for (let i = 0; i < 12; i++) {
+    sum += parseInt(numbers[i]) * weight[i];
+  }
+  let remainder = sum % 11;
+  let digit1 = remainder < 2 ? 0 : 11 - remainder;
+  
+  if (parseInt(numbers[12]) !== digit1) return false;
+  
+  // Calcula o segundo dígito verificador
+  sum = 0;
+  weight = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  for (let i = 0; i < 13; i++) {
+    sum += parseInt(numbers[i]) * weight[i];
+  }
+  remainder = sum % 11;
+  let digit2 = remainder < 2 ? 0 : 11 - remainder;
+  
+  if (parseInt(numbers[13]) !== digit2) return false;
+  
+  return true;
+};
+
 interface Pdv {
   id: string;
   codigo: string;
@@ -271,6 +307,12 @@ export default function Clientes() {
     e.preventDefault();
     if (!editingPdv) return;
 
+    // Valida CNPJ se preenchido
+    if (formData.cnpj.trim() && !validateCNPJ(formData.cnpj)) {
+      toast.error('CNPJ inválido. Verifique os dígitos.');
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('pdvs')
@@ -350,6 +392,12 @@ export default function Clientes() {
 
     if (!createFormData.unidade) {
       toast.error('Selecione uma unidade');
+      return;
+    }
+
+    // Valida CNPJ se preenchido
+    if (createFormData.cnpj.trim() && !validateCNPJ(createFormData.cnpj)) {
+      toast.error('CNPJ inválido. Verifique os dígitos.');
       return;
     }
 
