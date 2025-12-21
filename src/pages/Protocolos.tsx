@@ -28,6 +28,8 @@ import { toast } from 'sonner';
 import { differenceInDays, parseISO, format, isAfter, isBefore, parse, isToday } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import CreateProtocoloModal from '@/components/CreateProtocoloModal';
+import { ChatBubble } from '@/components/chat/ChatBubble';
+import { useChatDB } from '@/hooks/useChatDB';
 
 const calcularSlaDias = (createdAt: string): number => {
   const dataProtocolo = parseISO(createdAt);
@@ -45,6 +47,7 @@ export default function Protocolos() {
   const [searchParams] = useSearchParams();
   const { canValidate, canLaunch, isAdmin, isDistribuicao, isConferente, user } = useAuth();
   const { protocolos, addProtocolo, updateProtocolo, deleteProtocolo } = useProtocolos();
+  const { totalUnread } = useChatDB();
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<string>('todos');
   const [dataInicialFilter, setDataInicialFilter] = useState('');
@@ -885,6 +888,13 @@ export default function Protocolos() {
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onCreateProtocolo={handleCreateProtocolo}
+      />
+
+      {/* Floating Chat Bubble */}
+      <ChatBubble 
+        unreadCount={totalUnread}
+        protocoloId={selectedProtocolo?.id}
+        protocoloNumero={selectedProtocolo?.numero}
       />
     </div>
   );
