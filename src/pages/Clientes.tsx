@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { unidades } from '@/data/mockData';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/button';
 import { TablePagination } from '@/components/ui/TablePagination';
@@ -15,6 +14,23 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+
+// Mapeamento de códigos para nomes de unidades
+const UNIDADES_MAP: { codigo: string; nome: string }[] = [
+  { codigo: 'JZ', nome: 'Revalle Juazeiro' },
+  { codigo: 'BF', nome: 'Revalle Bonfim' },
+  { codigo: 'PE', nome: 'Revalle Petrolina' },
+  { codigo: 'RP', nome: 'Revalle Ribeira do Pombal' },
+  { codigo: 'PA', nome: 'Revalle Paulo Afonso' },
+  { codigo: 'AL', nome: 'Revalle Alagoinhas' },
+  { codigo: 'SE', nome: 'Revalle Serrinha' },
+];
+
+const getUnidadeNome = (codigo: string | null): string => {
+  if (!codigo) return '-';
+  const unidade = UNIDADES_MAP.find(u => u.codigo === codigo);
+  return unidade ? unidade.nome : codigo;
+};
 
 interface Pdv {
   id: string;
@@ -107,7 +123,7 @@ export default function Clientes() {
         p.endereco || '',
         p.bairro || '',
         p.cidade || '',
-        p.unidade || ''
+        getUnidadeNome(p.unidade)
       ].map(field => `"${field}"`).join(';'))
     ].join('\n');
 
@@ -132,7 +148,7 @@ export default function Clientes() {
       'Endereço': p.endereco || '',
       'Bairro': p.bairro || '',
       'Cidade': p.cidade || '',
-      'Unidade': p.unidade || ''
+      'Unidade': getUnidadeNome(p.unidade)
     }));
 
     const ws = XLSX.utils.json_to_sheet(data);
@@ -178,14 +194,14 @@ export default function Clientes() {
         
         {isAdmin && (
           <Select value={unidadeFiltro} onValueChange={setUnidadeFiltro}>
-            <SelectTrigger className="w-[180px] h-8 text-xs">
+            <SelectTrigger className="w-[220px] h-8 text-xs">
               <MapPin size={14} className="mr-1.5 text-muted-foreground" />
               <SelectValue placeholder="Todas as Unidades" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todas">Todas as Unidades</SelectItem>
-              {unidades.map(u => (
-                <SelectItem key={u} value={u}>{u}</SelectItem>
+              {UNIDADES_MAP.map(u => (
+                <SelectItem key={u.codigo} value={u.codigo}>{u.nome}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -234,7 +250,7 @@ export default function Clientes() {
                       <td className="p-2.5">
                         <span className="inline-flex items-center gap-1 text-muted-foreground text-xs">
                           <MapPin size={12} />
-                          {pdv.unidade || '-'}
+                          {getUnidadeNome(pdv.unidade)}
                         </span>
                       </td>
                     </tr>
