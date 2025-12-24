@@ -194,36 +194,118 @@ export function ProtocoloDetails({
     toast.success('Observação salva!');
   };
 
-  const handleAnexarPdf = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAnexarArquivo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && file.type === 'application/pdf') {
-      setArquivoAnexado(file);
-    } else {
-      toast.error('Por favor, selecione um arquivo PDF');
+    if (file) {
+      const isPdf = file.type === 'application/pdf';
+      const isImage = file.type.startsWith('image/');
+      if (isPdf || isImage) {
+        setArquivoAnexado(file);
+      } else {
+        toast.error('Por favor, selecione um arquivo PDF ou imagem');
+      }
     }
   };
 
-  const handleEncerrarProtocolo = () => {
+  const handleEncerrarProtocolo = async () => {
     if (!onUpdateProtocolo || !user) return;
+    
+    let arquivoUrl: string | null = null;
+    
+    // Upload do arquivo para o storage se existir
+    if (arquivoAnexado) {
+      try {
+        const fileExt = arquivoAnexado.name.split('.').pop();
+        const fileName = `encerramento_${protocolo.numero}_${Date.now()}.${fileExt}`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('fotos-protocolos')
+          .upload(fileName, arquivoAnexado);
+        
+        if (uploadError) {
+          console.error('Erro ao fazer upload:', uploadError);
+          toast.error('Erro ao fazer upload do arquivo');
+          return;
+        }
+        
+        // Obter URL pública
+        const { data: publicUrlData } = supabase.storage
+          .from('fotos-protocolos')
+          .getPublicUrl(fileName);
+        
+        arquivoUrl = publicUrlData.publicUrl;
+      } catch (error) {
+        console.error('Erro no upload:', error);
+        toast.error('Erro ao fazer upload do arquivo');
+        return;
+      }
+    }
+    
+    const dataEncerramento = format(new Date(), 'dd/MM/yyyy');
+    const horaEncerramento = format(new Date(), 'HH:mm');
     
     const protocoloAtualizado: Protocolo = {
       ...protocolo,
       status: 'encerrado' as const,
       mensagemEncerramento,
-      arquivoEncerramento: arquivoAnexado?.name,
+      arquivoEncerramento: arquivoUrl || arquivoAnexado?.name,
       observacoesLog: [
         ...(protocolo.observacoesLog || []),
         {
           id: Date.now().toString(),
           usuarioNome: user.nome,
           usuarioId: user.id,
-          data: format(new Date(), 'dd/MM/yyyy'),
-          hora: format(new Date(), 'HH:mm'),
+          data: dataEncerramento,
+          hora: horaEncerramento,
           acao: 'Encerrou o protocolo',
           texto: mensagemEncerramento || 'Protocolo encerrado'
         }
       ]
     };
+    
+    // Enviar webhook de encerramento
+    try {
+      const webhookPayload = {
+        tipo: 'encerramento',
+        numero: protocolo.numero,
+        data: protocolo.data,
+        hora: protocolo.hora,
+        dataEncerramento,
+        horaEncerramento,
+        status: 'encerrado',
+        mapa: protocolo.mapa,
+        notaFiscal: protocolo.notaFiscal,
+        codigoPdv: protocolo.codigoPdv,
+        tipoReposicao: protocolo.tipoReposicao,
+        causa: protocolo.causa,
+        motoristaNome: protocolo.motorista.nome,
+        motoristaCodigo: protocolo.motorista.codigo,
+        motoristaWhatsapp: protocolo.motorista.whatsapp,
+        motoristaEmail: protocolo.motorista.email,
+        unidade: protocolo.unidadeNome || protocolo.motorista.unidade,
+        observacaoGeral: protocolo.observacaoGeral,
+        produtos: protocolo.produtos,
+        fotosProtocolo: protocolo.fotosProtocolo,
+        mensagemEncerramento: mensagemEncerramento || '',
+        arquivoEncerramentoUrl: arquivoUrl,
+        usuarioEncerramento: {
+          nome: user.nome,
+          id: user.id
+        }
+      };
+      
+      fetch('https://n8n.revalle.com.br/webhook/reposicaowpp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(webhookPayload),
+      }).catch(error => {
+        console.error('Erro ao enviar webhook de encerramento:', error);
+      });
+    } catch (error) {
+      console.error('Erro ao preparar webhook:', error);
+    }
     
     onUpdateProtocolo(protocoloAtualizado);
     toast.success('Protocolo encerrado com sucesso!');
@@ -847,12 +929,12 @@ Lançado: ${protocolo.lancado ? 'Sim' : 'Não'}
                     </div>
                     
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-foreground">Anexar arquivo PDF</label>
+                      <label className="text-sm font-medium text-foreground">Anexar arquivo (PDF ou Imagem)</label>
                       <div className="flex items-center gap-3">
                         <Input 
                           type="file" 
-                          accept=".pdf"
-                          onChange={handleAnexarPdf}
+                          accept=".pdf,image/*"
+                          onChange={handleAnexarArquivo}
                           className="max-w-xs"
                         />
                         {arquivoAnexado && (
