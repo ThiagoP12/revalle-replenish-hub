@@ -522,7 +522,7 @@ export default function MotoristaPortal() {
           observacaoGeral: observacao || ''
         };
 
-        fetch('https://n8n.revalle.com.br/webhook-test/reposicaowpp', {
+        fetch('https://n8n.revalle.com.br/webhook/reposicaowpp', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
