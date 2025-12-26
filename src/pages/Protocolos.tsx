@@ -787,49 +787,14 @@ export default function Protocolos() {
                     </button>
                   </td>
                   <td className="p-2.5 text-center border-r border-border">
-                    {/* Conferente só vê status, sem ação */}
-                    {isConferente ? (
-                      protocolo.enviadoLancarStatus === 'enviado' || protocolo.enviadoLancar ? (
-                        <CheckCircle className="text-green-500 mx-auto" size={16} />
-                      ) : protocolo.enviadoLancarStatus === 'erro' ? (
-                        <span title={protocolo.enviadoLancarErro || 'Erro ao enviar'}><AlertCircle className="text-red-500 mx-auto" size={16} /></span>
-                      ) : (
-                        <XCircle className="text-muted-foreground mx-auto" size={16} />
-                      )
+                    {protocolo.enviadoLancarStatus === 'enviado' || protocolo.enviadoLancar ? (
+                      <CheckCircle className="text-green-500 mx-auto" size={18} />
+                    ) : protocolo.enviadoLancarStatus === 'erro' ? (
+                      <span title={protocolo.enviadoLancarErro || 'Erro ao enviar'}>
+                        <XCircle className="text-red-500 mx-auto" size={18} />
+                      </span>
                     ) : (
-                      protocolo.enviadoLancarStatus === 'enviado' || protocolo.enviadoLancar ? (
-                        <span title="Enviado com sucesso"><CheckCircle className="text-green-500 mx-auto" size={16} /></span>
-                      ) : protocolo.enviadoLancarStatus === 'erro' ? (
-                        <div className="flex flex-col items-center gap-0.5">
-                          <div className="flex items-center gap-0.5" title={protocolo.enviadoLancarErro || 'Erro ao enviar'}>
-                            <AlertCircle className="text-red-500" size={14} />
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEnviarLancar(protocolo.id)}
-                            className="text-orange-600 hover:text-orange-700 h-5 px-1"
-                            disabled={enviandoLancar === protocolo.id}
-                          >
-                            <RefreshCw size={12} className={enviandoLancar === protocolo.id ? 'animate-spin' : ''} />
-                            <span className="text-[10px] ml-0.5">Reenviar</span>
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEnviarLancar(protocolo.id)}
-                          className="text-info hover:text-info/80 h-6 w-6 p-0"
-                          disabled={enviandoLancar === protocolo.id}
-                        >
-                          {enviandoLancar === protocolo.id ? (
-                            <RefreshCw size={14} className="animate-spin" />
-                          ) : (
-                            <Send size={14} />
-                          )}
-                        </Button>
-                      )
+                      <XCircle className="text-muted-foreground mx-auto" size={18} />
                     )}
                   </td>
                   <td className="p-2.5">
