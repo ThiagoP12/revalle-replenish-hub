@@ -670,7 +670,6 @@ export default function Protocolos() {
               <th className="text-center p-2.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider border-r border-border">Validação</th>
               <th className="text-center p-2.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider border-r border-border">Lançado</th>
               <th className="text-center p-2.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider border-r border-border">Env. Lançar</th>
-              <th className="text-center p-2.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider border-r border-border">Env. Encerrar</th>
               <th className="text-center p-2.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Ações</th>
             </tr>
           </thead>
@@ -696,9 +695,6 @@ export default function Protocolos() {
                   </td>
                   <td className="p-2.5 text-center border-r border-border">
                     <Skeleton className="h-5 w-16 mx-auto rounded-full" />
-                  </td>
-                  <td className="p-2.5 text-center border-r border-border">
-                    <Skeleton className="h-5 w-5 mx-auto rounded-full" />
                   </td>
                   <td className="p-2.5 text-center border-r border-border">
                     <Skeleton className="h-5 w-5 mx-auto rounded-full" />
@@ -828,53 +824,6 @@ export default function Protocolos() {
                           disabled={enviandoLancar === protocolo.id}
                         >
                           {enviandoLancar === protocolo.id ? (
-                            <RefreshCw size={14} className="animate-spin" />
-                          ) : (
-                            <Send size={14} />
-                          )}
-                        </Button>
-                      )
-                    )}
-                  </td>
-                  <td className="p-2.5 text-center border-r border-border">
-                    {/* Conferente só vê status, sem ação */}
-                    {isConferente ? (
-                      protocolo.enviadoEncerrarStatus === 'enviado' || protocolo.enviadoEncerrar ? (
-                        <CheckCircle className="text-green-500 mx-auto" size={16} />
-                      ) : protocolo.enviadoEncerrarStatus === 'erro' ? (
-                        <span title={protocolo.enviadoEncerrarErro || 'Erro ao enviar'}><AlertCircle className="text-red-500 mx-auto" size={16} /></span>
-                      ) : (
-                        <XCircle className="text-muted-foreground mx-auto" size={16} />
-                      )
-                    ) : (
-                      protocolo.enviadoEncerrarStatus === 'enviado' || protocolo.enviadoEncerrar ? (
-                        <span title="Encerrado com sucesso"><CheckCircle className="text-green-500 mx-auto" size={16} /></span>
-                      ) : protocolo.enviadoEncerrarStatus === 'erro' ? (
-                        <div className="flex flex-col items-center gap-0.5">
-                          <div className="flex items-center gap-0.5" title={protocolo.enviadoEncerrarErro || 'Erro ao enviar'}>
-                            <AlertCircle className="text-red-500" size={14} />
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEnviarEncerrar(protocolo.id)}
-                            className="text-orange-600 hover:text-orange-700 h-5 px-1"
-                            disabled={enviandoEncerrar === protocolo.id || !protocolo.lancado || !protocolo.validacao}
-                          >
-                            <RefreshCw size={12} className={enviandoEncerrar === protocolo.id ? 'animate-spin' : ''} />
-                            <span className="text-[10px] ml-0.5">Reenviar</span>
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEnviarEncerrar(protocolo.id)}
-                          className="text-green-600 hover:text-green-700 h-6 w-6 p-0"
-                          disabled={enviandoEncerrar === protocolo.id || !protocolo.lancado || !protocolo.validacao}
-                          title={!protocolo.validacao || !protocolo.lancado ? 'Validação e Lançamento são obrigatórios' : ''}
-                        >
-                          {enviandoEncerrar === protocolo.id ? (
                             <RefreshCw size={14} className="animate-spin" />
                           ) : (
                             <Send size={14} />
