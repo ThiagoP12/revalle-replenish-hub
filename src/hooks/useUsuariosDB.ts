@@ -25,7 +25,7 @@ interface CreateUsuarioInput {
 export function useUsuariosDB() {
   const queryClient = useQueryClient();
 
-  const { data: usuarios = [], isLoading } = useQuery({
+  const { data: usuarios = [], isLoading, refetch } = useQuery({
     queryKey: ['usuarios'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -74,7 +74,7 @@ export function useUsuariosDB() {
       }
 
       // 2. Aguardar um pouco para o trigger criar o user_profile
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // 3. Atualizar o user_profile com os dados adicionais
       const { error: updateError } = await supabase
@@ -109,7 +109,7 @@ export function useUsuariosDB() {
       queryClient.invalidateQueries({ queryKey: ['usuarios'] });
       toast.success('Usuário criado com sucesso! Ele já pode fazer login.');
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       if (error.message === 'EMAIL_EXISTS') {
         toast.error('Já existe um usuário com este email');
       } else {
@@ -120,7 +120,7 @@ export function useUsuariosDB() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Omit<Usuario, 'id' | 'createdAt'>> }) => {
-      const updateData: Record<string, any> = {};
+      const updateData: Record<string, unknown> = {};
       
       if (updates.nome !== undefined) updateData.nome = updates.nome;
       if (updates.email !== undefined) updateData.user_email = updates.email;
@@ -139,7 +139,7 @@ export function useUsuariosDB() {
       queryClient.invalidateQueries({ queryKey: ['usuarios'] });
       toast.success('Usuário atualizado com sucesso!');
     },
-    onError: (error: any) => {
+    onError: (error: { code?: string }) => {
       if (error.code === '23505') {
         toast.error('Já existe um usuário com este email');
       } else {
@@ -150,15 +150,27 @@ export function useUsuariosDB() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('user_profiles').delete().eq('id', id);
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .delete()
+        .eq('id', id)
+        .select();
+
       if (error) throw error;
+      
+      // Verificar se realmente foi deletado
+      if (!data || data.length === 0) {
+        throw new Error('Você não tem permissão para excluir usuários. Apenas administradores podem fazer isso.');
+      }
+      
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['usuarios'] });
       toast.success('Usuário excluído com sucesso!');
     },
-    onError: () => {
-      toast.error('Erro ao excluir usuário');
+    onError: (error: Error) => {
+      toast.error(error.message || 'Erro ao excluir usuário');
     },
   });
 
@@ -171,6 +183,6 @@ export function useUsuariosDB() {
     isAdding: addMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
-    refetch: () => queryClient.invalidateQueries({ queryKey: ['usuarios'] }),
+    refetch,
   };
 }
