@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,14 +18,14 @@ interface TablePaginationProps {
   onPageSizeChange: (size: number) => void;
 }
 
-export function TablePagination({
+export const TablePagination = React.forwardRef<HTMLDivElement, TablePaginationProps>(({
   currentPage,
   totalPages,
   pageSize,
   totalItems,
   onPageChange,
   onPageSizeChange,
-}: TablePaginationProps) {
+}, ref) => {
   const startIndex = (currentPage - 1) * pageSize + 1;
   const endIndex = Math.min(currentPage * pageSize, totalItems);
 
@@ -67,7 +68,7 @@ export function TablePagination({
   if (totalItems === 0) return null;
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3">
+    <div ref={ref} className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3">
       <p className="text-xs text-muted-foreground">
         Mostrando {startIndex}-{endIndex} de {totalItems} registro(s)
       </p>
@@ -132,4 +133,5 @@ export function TablePagination({
       </div>
     </div>
   );
-}
+});
+TablePagination.displayName = "TablePagination";
