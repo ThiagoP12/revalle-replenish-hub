@@ -660,9 +660,9 @@ export default function Protocolos() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todos</SelectItem>
-                  <SelectItem value="Inversão">Inversão</SelectItem>
-                  <SelectItem value="Avaria">Avaria</SelectItem>
-                  <SelectItem value="Falta">Falta</SelectItem>
+                  <SelectItem value="INVERSAO">Inversão</SelectItem>
+                  <SelectItem value="AVARIA">Avaria</SelectItem>
+                  <SelectItem value="FALTA">Falta</SelectItem>
                 </SelectContent>
               </Select>
             </div>
