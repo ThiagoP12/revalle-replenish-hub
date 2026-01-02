@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.sla-16-dias-alerta]
 verify_jwt = false
+
+[functions.teste-webhook-criacao]
+verify_jwt = false
