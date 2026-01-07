@@ -47,56 +47,26 @@ export function useUsuariosDB() {
 
   const addMutation = useMutation({
     mutationFn: async (usuario: CreateUsuarioInput) => {
-      // 1. Criar usuário no Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: usuario.email,
-        password: usuario.senha,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: {
-            nome: usuario.nome,
-          },
+      // Usar edge function para criar usuário sem fazer login
+      const { data, error } = await supabase.functions.invoke('create-user', {
+        body: {
+          email: usuario.email,
+          password: usuario.senha,
+          nome: usuario.nome,
+          nivel: usuario.nivel,
+          unidades: usuario.unidades,
         },
       });
 
-      if (authError) {
-        if (authError.message.includes('already registered')) {
+      if (error) {
+        throw new Error(error.message || 'Erro ao criar usuário');
+      }
+
+      if (data?.error) {
+        if (data.error === 'EMAIL_EXISTS') {
           throw new Error('EMAIL_EXISTS');
         }
-        throw authError;
-      }
-
-      if (!authData.user) {
-        throw new Error('Falha ao criar usuário');
-      }
-
-      // 2. Aguardar um pouco para o trigger criar o user_profile
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // 3. Atualizar o user_profile com os dados adicionais
-      const { error: updateError } = await supabase
-        .from('user_profiles')
-        .update({
-          nome: usuario.nome,
-          nivel: usuario.nivel,
-          unidade: usuario.unidades.join(', '),
-        })
-        .eq('user_email', usuario.email);
-
-      if (updateError) {
-        console.error('Erro ao atualizar profile:', updateError);
-      }
-
-      // 4. Criar role do usuário
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: authData.user.id,
-          role: usuario.nivel,
-        });
-
-      if (roleError) {
-        console.error('Erro ao criar role:', roleError);
+        throw new Error(data.error);
       }
 
       return { success: true };
