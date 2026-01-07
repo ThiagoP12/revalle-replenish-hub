@@ -375,6 +375,9 @@ export function ProtocoloDetails({
     try {
       let webhookPayload: Record<string, unknown>;
       
+      // Usar o número informado no campo de reenvio (clienteTelefone) se disponível
+      const numeroContatoReenvio = clienteTelefone || protocolo.clienteTelefone || protocolo.contatoWhatsapp || '';
+      
       if (tipo === 'lancar') {
         // Mesmo JSON enviado na criação do protocolo
         webhookPayload = {
@@ -398,7 +401,7 @@ export function ProtocoloDetails({
             fotoLoteProduto: protocolo.fotosProtocolo?.fotoLoteProduto || '',
             fotoAvaria: protocolo.fotosProtocolo?.fotoAvaria || ''
           },
-          whatsappContato: protocolo.contatoWhatsapp || clienteTelefone || '',
+          whatsappContato: numeroContatoReenvio,
           emailContato: protocolo.contatoEmail || '',
           observacaoGeral: protocolo.observacaoGeral || ''
         };
@@ -425,9 +428,9 @@ export function ProtocoloDetails({
           motoristaWhatsapp: protocolo.motorista.whatsapp,
           motoristaEmail: protocolo.motorista.email,
           unidade: protocolo.unidadeNome || protocolo.motorista.unidade,
-          clienteTelefone: protocolo.clienteTelefone || clienteTelefone,
+          clienteTelefone: numeroContatoReenvio,
           contatoEmail: protocolo.contatoEmail,
-          contatoWhatsapp: protocolo.contatoWhatsapp,
+          contatoWhatsapp: numeroContatoReenvio,
           observacaoGeral: protocolo.observacaoGeral,
           produtos: protocolo.produtos,
           fotos: {
