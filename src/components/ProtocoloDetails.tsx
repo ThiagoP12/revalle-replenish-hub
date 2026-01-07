@@ -502,7 +502,7 @@ export function ProtocoloDetails({
           [statusField]: 'enviado',
           [erroField]: undefined,
           clienteTelefone: clienteTelefone || protocolo.clienteTelefone,
-          habilitarReenvio: false,
+          contatoWhatsapp: clienteTelefone || protocolo.contatoWhatsapp,
           observacoesLog: [
             ...(protocolo.observacoesLog || []),
             {
@@ -512,7 +512,7 @@ export function ProtocoloDetails({
               data: format(new Date(), 'dd/MM/yyyy'),
               hora: format(new Date(), 'HH:mm'),
               acao: tipo === 'lancar' ? 'Reenviou mensagem de lançamento' : 'Reenviou mensagem de encerramento',
-              texto: `Mensagem reenviada via webhook`
+              texto: `Mensagem reenviada para o número ${clienteTelefone || protocolo.clienteTelefone || 'não informado'}`
             }
           ]
         };
