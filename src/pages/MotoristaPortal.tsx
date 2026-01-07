@@ -6,7 +6,7 @@ import { useMotoristaAuth } from '@/contexts/MotoristaAuthContext';
 import { useProtocolos } from '@/contexts/ProtocolosContext';
 import { useOfflineProtocolos } from '@/hooks/useOfflineProtocolos';
 import { compressImage } from '@/utils/imageCompression';
-import { uploadFotosProtocolo } from '@/utils/uploadFotoStorage';
+import { uploadFotosProtocolo, UploadProgress } from '@/utils/uploadFotoStorage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,7 +26,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Plus, Trash2, CheckCircle, Camera, Package, X, AlertCircle, Check, CalendarIcon, LogOut, FileText, PlusCircle, Phone } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, Camera, Package, X, AlertCircle, Check, CalendarIcon, LogOut, FileText, PlusCircle, Phone, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Protocolo, Produto, FotosProtocolo } from '@/types';
 import { format } from 'date-fns';
@@ -125,6 +125,8 @@ export default function MotoristaPortal() {
   const [protocoloCriado, setProtocoloCriado] = useState(false);
   const [numeroProtocolo, setNumeroProtocolo] = useState('');
   const [isCompressing, setIsCompressing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
 
   // Touched state for validation
   const [touched, setTouched] = useState<TouchedFields>({
@@ -148,6 +150,18 @@ export default function MotoristaPortal() {
   // Camera modal state
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraTarget, setCameraTarget] = useState<'fotoMotoristaPdv' | 'fotoLoteProduto' | 'fotoAvaria' | null>(null);
+
+  // Calcular progresso do upload
+  const getUploadPercentage = () => {
+    if (!uploadProgress) return 0;
+    const statuses = [
+      uploadProgress.fotoMotoristaPdv,
+      uploadProgress.fotoLoteProduto,
+      tipoReposicao === 'avaria' ? uploadProgress.fotoAvaria : 'success'
+    ];
+    const completed = statuses.filter(s => s === 'success').length;
+    return Math.round((completed / statuses.length) * 100);
+  };
 
   // Sincronizar protocolos pendentes quando online
   useEffect(() => {
@@ -477,6 +491,14 @@ export default function MotoristaPortal() {
     }
 
     try {
+      // Iniciar upload com progresso
+      setIsUploading(true);
+      setUploadProgress({
+        fotoMotoristaPdv: 'pending',
+        fotoLoteProduto: 'pending',
+        fotoAvaria: tipoReposicao === 'avaria' ? 'pending' : 'success'
+      });
+
       // Upload das fotos para o storage ANTES de salvar o protocolo
       const fotosUrls = await uploadFotosProtocolo(
         {
@@ -484,20 +506,24 @@ export default function MotoristaPortal() {
           fotoLoteProduto,
           fotoAvaria
         },
-        numero
+        numero,
+        (progress) => setUploadProgress(progress)
       );
+
+      setIsUploading(false);
+      setUploadProgress(null);
 
       // Validar se os uploads foram bem-sucedidos
       if (!fotosUrls.fotoMotoristaPdv) {
-        toast({ title: 'Erro', description: 'Erro ao fazer upload da foto Motorista/PDV. Tente novamente.', variant: 'destructive' });
+        toast({ title: 'Erro', description: 'Erro ao fazer upload da foto Motorista/PDV após 3 tentativas.', variant: 'destructive' });
         return;
       }
       if (!fotosUrls.fotoLoteProduto) {
-        toast({ title: 'Erro', description: 'Erro ao fazer upload da foto Lote do Produto. Tente novamente.', variant: 'destructive' });
+        toast({ title: 'Erro', description: 'Erro ao fazer upload da foto Lote do Produto após 3 tentativas.', variant: 'destructive' });
         return;
       }
       if (tipoReposicao === 'avaria' && !fotosUrls.fotoAvaria) {
-        toast({ title: 'Erro', description: 'Erro ao fazer upload da foto de Avaria. Tente novamente.', variant: 'destructive' });
+        toast({ title: 'Erro', description: 'Erro ao fazer upload da foto de Avaria após 3 tentativas.', variant: 'destructive' });
         return;
       }
 
@@ -1262,6 +1288,71 @@ export default function MotoristaPortal() {
         </Tabs>
       </div>
 
+      {/* Upload Progress Indicator */}
+      {isUploading && uploadProgress && activeTab === 'novo' && (
+        <div 
+          className="fixed bottom-20 left-0 right-0 p-4 bg-background border-t border-border"
+          style={{ zIndex: 9998 }}
+        >
+          <div className="max-w-lg mx-auto bg-primary/5 border border-primary/20 rounded-lg p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <span className="font-medium text-sm">
+                {uploadProgress.currentRetry 
+                  ? `Tentativa ${uploadProgress.currentRetry.attempt}/3 - ${uploadProgress.currentRetry.foto}...`
+                  : 'Enviando fotos...'}
+              </span>
+            </div>
+            <div className="h-2 bg-muted rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary transition-all duration-300" 
+                style={{ width: `${getUploadPercentage()}%` }}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <div className="flex items-center gap-1">
+                {uploadProgress.fotoMotoristaPdv === 'success' ? (
+                  <CheckCircle className="h-3 w-3 text-green-500" />
+                ) : uploadProgress.fotoMotoristaPdv === 'uploading' || uploadProgress.fotoMotoristaPdv === 'retrying' ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : uploadProgress.fotoMotoristaPdv === 'error' ? (
+                  <X className="h-3 w-3 text-red-500" />
+                ) : (
+                  <div className="h-3 w-3 rounded-full bg-muted" />
+                )}
+                <span>Motorista</span>
+              </div>
+              <div className="flex items-center gap-1">
+                {uploadProgress.fotoLoteProduto === 'success' ? (
+                  <CheckCircle className="h-3 w-3 text-green-500" />
+                ) : uploadProgress.fotoLoteProduto === 'uploading' || uploadProgress.fotoLoteProduto === 'retrying' ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : uploadProgress.fotoLoteProduto === 'error' ? (
+                  <X className="h-3 w-3 text-red-500" />
+                ) : (
+                  <div className="h-3 w-3 rounded-full bg-muted" />
+                )}
+                <span>Lote</span>
+              </div>
+              {tipoReposicao === 'avaria' && (
+                <div className="flex items-center gap-1">
+                  {uploadProgress.fotoAvaria === 'success' ? (
+                    <CheckCircle className="h-3 w-3 text-green-500" />
+                  ) : uploadProgress.fotoAvaria === 'uploading' || uploadProgress.fotoAvaria === 'retrying' ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : uploadProgress.fotoAvaria === 'error' ? (
+                    <X className="h-3 w-3 text-red-500" />
+                  ) : (
+                    <div className="h-3 w-3 rounded-full bg-muted" />
+                  )}
+                  <span>Avaria</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sticky Submit Button - Only show on new protocol tab */}
       {activeTab === 'novo' && (
         <div 
@@ -1275,12 +1366,26 @@ export default function MotoristaPortal() {
                 e.stopPropagation();
                 handleSubmit();
               }}
-              disabled={isCompressing}
+              disabled={isCompressing || isUploading}
               className="w-full h-14 flex items-center justify-center gap-2 text-base font-semibold shadow-lg bg-primary text-primary-foreground rounded-xl active:opacity-80 disabled:opacity-50"
               style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
             >
-              <CheckCircle className="h-5 w-5" />
-              <span>{isCompressing ? 'Processando imagem...' : 'Enviar Protocolo'}</span>
+              {isUploading ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Enviando fotos...</span>
+                </>
+              ) : isCompressing ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Processando imagem...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-5 w-5" />
+                  <span>Enviar Protocolo</span>
+                </>
+              )}
             </button>
           </div>
         </div>

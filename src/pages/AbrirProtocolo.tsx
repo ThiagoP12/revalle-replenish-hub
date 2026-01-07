@@ -1,11 +1,12 @@
 import { useState, useMemo, useRef } from 'react';
-import { Plus, Trash2, Send, Search, User, Upload, X, CheckCircle, Camera } from 'lucide-react';
+import { Plus, Trash2, Send, Search, User, Upload, X, CheckCircle, Camera, Loader2, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { uploadFotosProtocolo } from '@/utils/uploadFotoStorage';
+import { Progress } from '@/components/ui/progress';
+import { uploadFotosProtocolo, UploadProgress } from '@/utils/uploadFotoStorage';
 import {
   Select,
   SelectContent,
@@ -68,6 +69,8 @@ export default function AbrirProtocolo() {
   const [whatsapp, setWhatsapp] = useState('');
   const [observacao, setObservacao] = useState('');
   const [protocoloCriado, setProtocoloCriado] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   
   // Driver selection state
   const [selectedMotorista, setSelectedMotorista] = useState<Motorista | null>(null);
@@ -82,6 +85,18 @@ export default function AbrirProtocolo() {
   const fotoMotoristaPdvRef = useRef<HTMLInputElement>(null);
   const fotoLoteProdutoRef = useRef<HTMLInputElement>(null);
   const fotoAvariaRef = useRef<HTMLInputElement>(null);
+
+  // Calcular progresso do upload
+  const getUploadPercentage = () => {
+    if (!uploadProgress) return 0;
+    const statuses = [
+      uploadProgress.fotoMotoristaPdv,
+      uploadProgress.fotoLoteProduto,
+      tipoReposicao === 'avaria' ? uploadProgress.fotoAvaria : 'success'
+    ];
+    const completed = statuses.filter(s => s === 'success').length;
+    return Math.round((completed / statuses.length) * 100);
+  };
 
   const filteredMotoristas = useMemo(() => {
     if (!motoristaSearch.trim()) return mockMotoristas;
@@ -209,6 +224,14 @@ export default function AbrirProtocolo() {
     const now = new Date();
     const protocoloNumero = `PROTOC-${format(now, 'yyyyMMddHHmmss')}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
 
+    // Iniciar upload com progresso
+    setIsUploading(true);
+    setUploadProgress({
+      fotoMotoristaPdv: 'pending',
+      fotoLoteProduto: 'pending',
+      fotoAvaria: tipoReposicao === 'avaria' ? 'pending' : 'success'
+    });
+
     // Upload das fotos para o storage e obter URLs públicas
     const fotosUrls = await uploadFotosProtocolo(
       {
@@ -216,20 +239,24 @@ export default function AbrirProtocolo() {
         fotoLoteProduto,
         fotoAvaria: tipoReposicao === 'avaria' ? fotoAvaria : null
       },
-      protocoloNumero
+      protocoloNumero,
+      (progress) => setUploadProgress(progress)
     );
+
+    setIsUploading(false);
+    setUploadProgress(null);
 
     // Validar se os uploads foram bem-sucedidos
     if (!fotosUrls.fotoMotoristaPdv) {
-      toast.error('Erro ao fazer upload da foto Motorista/PDV. Tente novamente.');
+      toast.error('Erro ao fazer upload da foto Motorista/PDV após 3 tentativas. Verifique sua conexão.');
       return;
     }
     if (!fotosUrls.fotoLoteProduto) {
-      toast.error('Erro ao fazer upload da foto Lote do Produto. Tente novamente.');
+      toast.error('Erro ao fazer upload da foto Lote do Produto após 3 tentativas. Verifique sua conexão.');
       return;
     }
     if (tipoReposicao === 'avaria' && !fotosUrls.fotoAvaria) {
-      toast.error('Erro ao fazer upload da foto de Avaria. Tente novamente.');
+      toast.error('Erro ao fazer upload da foto de Avaria após 3 tentativas. Verifique sua conexão.');
       return;
     }
 
@@ -752,11 +779,75 @@ export default function AbrirProtocolo() {
             />
           </div>
 
+          {/* Indicador de Upload */}
+          {isUploading && uploadProgress && (
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <span className="font-medium text-sm">
+                  {uploadProgress.currentRetry 
+                    ? `Tentativa ${uploadProgress.currentRetry.attempt}/3 - ${uploadProgress.currentRetry.foto}...`
+                    : 'Enviando fotos...'}
+                </span>
+              </div>
+              <Progress value={getUploadPercentage()} className="h-2" />
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="flex items-center gap-1">
+                  {uploadProgress.fotoMotoristaPdv === 'success' ? (
+                    <CheckCircle className="h-3 w-3 text-green-500" />
+                  ) : uploadProgress.fotoMotoristaPdv === 'uploading' || uploadProgress.fotoMotoristaPdv === 'retrying' ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : uploadProgress.fotoMotoristaPdv === 'error' ? (
+                    <X className="h-3 w-3 text-red-500" />
+                  ) : (
+                    <div className="h-3 w-3 rounded-full bg-muted" />
+                  )}
+                  <span>Motorista/PDV</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {uploadProgress.fotoLoteProduto === 'success' ? (
+                    <CheckCircle className="h-3 w-3 text-green-500" />
+                  ) : uploadProgress.fotoLoteProduto === 'uploading' || uploadProgress.fotoLoteProduto === 'retrying' ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : uploadProgress.fotoLoteProduto === 'error' ? (
+                    <X className="h-3 w-3 text-red-500" />
+                  ) : (
+                    <div className="h-3 w-3 rounded-full bg-muted" />
+                  )}
+                  <span>Lote Produto</span>
+                </div>
+                {tipoReposicao === 'avaria' && (
+                  <div className="flex items-center gap-1">
+                    {uploadProgress.fotoAvaria === 'success' ? (
+                      <CheckCircle className="h-3 w-3 text-green-500" />
+                    ) : uploadProgress.fotoAvaria === 'uploading' || uploadProgress.fotoAvaria === 'retrying' ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : uploadProgress.fotoAvaria === 'error' ? (
+                      <X className="h-3 w-3 text-red-500" />
+                    ) : (
+                      <div className="h-3 w-3 rounded-full bg-muted" />
+                    )}
+                    <span>Avaria</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Botão Enviar */}
           <div className="flex justify-center pt-4">
-            <Button onClick={handleSubmit} className="px-8" size="lg">
-              <Send size={18} className="mr-2" />
-              Enviar Protocolo
+            <Button onClick={handleSubmit} className="px-8" size="lg" disabled={isUploading}>
+              {isUploading ? (
+                <>
+                  <Loader2 size={18} className="mr-2 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                <>
+                  <Send size={18} className="mr-2" />
+                  Enviar Protocolo
+                </>
+              )}
             </Button>
           </div>
         </div>
