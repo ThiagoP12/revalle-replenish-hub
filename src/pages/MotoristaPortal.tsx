@@ -36,7 +36,6 @@ import { ProdutoAutocomplete } from '@/components/ProdutoAutocomplete';
 import { PdvAutocomplete } from '@/components/PdvAutocomplete';
 import { MeusProtocolos } from '@/components/motorista/MeusProtocolos';
 import { MotoristaHeader } from '@/components/motorista/MotoristaHeader';
-import { MotoristaTour } from '@/components/MotoristaTour';
 import CameraCapture from '@/components/CameraCapture';
 
 interface ProdutoForm {
@@ -1387,9 +1386,6 @@ export default function MotoristaPortal() {
         </div>
       )}
       </div>
-      
-      {/* Guided Tour for Motorista */}
-      <MotoristaTour />
     </>
   );
 }
