@@ -130,12 +130,20 @@ export function EncerrarProtocoloModal({
         ? protocolo.observacoes_log as ObservacaoLog[]
         : [];
 
-      // 3. Atualizar protocolo no banco
+      // 3. Atualizar protocolo no banco (incluindo novo motorista responsável)
       setUploadProgress('Finalizando protocolo...');
       const { error: updateError } = await supabase
         .from('protocolos')
         .update({
           status: 'encerrado',
+          // Atualizar motorista responsável para quem está encerrando
+          motorista_id: motorista.id,
+          motorista_nome: motorista.nome,
+          motorista_codigo: motorista.codigo,
+          motorista_whatsapp: motorista.whatsapp || null,
+          motorista_email: motorista.email || null,
+          motorista_unidade: motorista.unidade,
+          // Dados de encerramento
           encerrado_por_tipo: 'motorista',
           encerrado_por_motorista_id: motorista.id,
           encerrado_por_motorista_nome: motorista.nome,
@@ -183,11 +191,11 @@ export function EncerrarProtocoloModal({
         codigoPdv: protocolo.codigo_pdv || '',
         tipoReposicao: protocolo.tipo_reposicao || '',
         causa: protocolo.causa || '',
-        motoristaNome: protocolo.motorista_nome,
-        motoristaCodigo: protocolo.motorista_codigo || '',
-        motoristaWhatsapp: protocolo.motorista_whatsapp || '',
-        motoristaEmail: protocolo.motorista_email || '',
-        unidade: protocolo.motorista_unidade || '',
+        motoristaNome: motorista.nome,
+        motoristaCodigo: motorista.codigo,
+        motoristaWhatsapp: motorista.whatsapp || '',
+        motoristaEmail: motorista.email || '',
+        unidade: motorista.unidade || '',
         clienteTelefone: protocolo.cliente_telefone || '',
         contatoEmail: protocolo.contato_email || '',
         contatoWhatsapp: protocolo.contato_whatsapp || '',
