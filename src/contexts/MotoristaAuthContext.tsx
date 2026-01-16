@@ -85,11 +85,12 @@ export function MotoristaAuthProvider({ children }: { children: ReactNode }) {
       return { success: true };
     }
 
-    // Se não encontrou por CPF, buscar por código promax (para Petrolina e retrocompatibilidade)
+    // Se não encontrou por CPF, buscar por código promax (apenas para Petrolina)
     const { data: porCodigo, error } = await supabase
       .from('motoristas')
       .select('*')
       .eq('codigo', identificador)
+      .eq('unidade', UNIDADE_PETROLINA)
       .maybeSingle();
 
     if (error || !porCodigo) {
